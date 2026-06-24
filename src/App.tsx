@@ -26,7 +26,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
 import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
@@ -763,8 +763,8 @@ export default function App() {
       <header id="app-header" className="border-b border-slate-800 bg-slate-950/60 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-700/20 text-emerald-400 rounded-xl border border-emerald-500/20 shadow-inner">
-              <Sparkles className="h-6 w-6" />
+            <div className="h-10 w-auto bg-white rounded-xl overflow-hidden flex items-center justify-center border border-emerald-500/20 px-2 py-1">
+              <img src="/logo.png" alt="NSB Logo" className="h-full w-auto object-contain" />
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight text-white flex items-center gap-2">
@@ -1607,6 +1607,9 @@ export default function App() {
               
               {/* NSB Welcome Board */}
               <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
+                <div className="w-full h-32 bg-white rounded-2xl flex items-center justify-center p-2 border border-slate-800 overflow-hidden">
+                   <img src="/logo.png" alt="NSB Logo" className="h-full w-auto object-contain" />
+                </div>
                 <div className="inline-flex py-1 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-400 font-mono font-bold tracking-wider">
                   SISTEMA OFICIAL DE MOBILIZAÇÃO
                 </div>
@@ -2018,10 +2021,11 @@ export default function App() {
                           data={stats.intentionsChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
+                          innerRadius={45}
+                          outerRadius={65}
                           paddingAngle={5}
                           dataKey="value"
+                          label={{ fill: '#94a3b8', fontSize: 12 }}
                         >
                           {stats.intentionsChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
@@ -2050,7 +2054,7 @@ export default function App() {
                 <div className="flex-1 mt-6 relative min-h-[220px]">
                   <SafeResponsiveContainer>
                     {(width, height) => (
-                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide />
                         <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={40} />
                         <Tooltip 
@@ -2059,6 +2063,7 @@ export default function App() {
                           itemStyle={{ color: '#10b981' }}
                         />
                         <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]}>
+                          <LabelList dataKey="count" position="right" fill="#94a3b8" fontSize={12} />
                           {stats.statesChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
                           ))}
@@ -2085,10 +2090,11 @@ export default function App() {
                           data={stats.genderChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={80}
+                          innerRadius={45}
+                          outerRadius={65}
                           paddingAngle={5}
                           dataKey="value"
+                          label={{ fill: '#94a3b8', fontSize: 12 }}
                         >
                           {stats.genderChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
@@ -2114,18 +2120,26 @@ export default function App() {
                 <div className="flex-1 mt-6 relative min-h-[220px]">
                   <SafeResponsiveContainer>
                     {(width, height) => (
-                      <BarChart width={width} height={height} data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                      <BarChart width={width} height={height} data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={70} />
+                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={80} />
                         <Tooltip 
                           cursor={{ fill: '#1e293b' }}
                           contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
                           itemStyle={{ color: '#f59e0b' }}
                         />
-                        <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]}>
-                          {stats.colorChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={index === 0 ? '#f59e0b' : '#d97706'} />
-                          ))}
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                          <LabelList dataKey="value" position="right" fill="#94a3b8" fontSize={12} />
+                          {stats.colorChartData.map((entry, index) => {
+                            const colorMap: Record<string, string> = {
+                              'Branca': '#f8fafc',
+                              'Preta': '#334155',
+                              'Parda': '#b45309',
+                              'Amarela': '#fde047',
+                              'Indígena': '#ef4444'
+                            };
+                            return <Cell key={`cell-${index}`} fill={colorMap[entry.name] || '#64748b'} />;
+                          })}
                         </Bar>
                       </BarChart>
                     )}
