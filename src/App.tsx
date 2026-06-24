@@ -220,11 +220,23 @@ export default function App() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithPopup(getAuthInstance(), googleProvider);
+      // Add a timeout to detect if popup hangs indefinitely (common in strict iframe sandboxes)
+      const popupPromise = signInWithPopup(getAuthInstance(), googleProvider);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('A janela de login não abriu ou não respondeu (bloqueio de pop-up). Para acessar o painel, abra o aplicativo em uma nova guia clicando no ícone no canto superior direito.')), 15000)
+      );
+      
+      await Promise.race([popupPromise, timeoutPromise]);
       setAdminError(null);
       triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
     } catch (error: any) {
-      setAdminError('Falha ao autenticar com o Google: ' + error.message);
+      console.error("Auth error details:", error);
+      const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+      let msg = error.message;
+      if (isIframe && (msg.includes('popup') || msg.includes('cross-origin') || error.code === 'auth/popup-closed-by-user')) {
+        msg += ' (Como você está na visualização, abra o app em uma nova guia usando o botão no canto superior direito para fazer login).';
+      }
+      setAdminError('Falha ao autenticar: ' + msg);
       triggerNotification('Falha na autenticação.', 'error');
     }
   };

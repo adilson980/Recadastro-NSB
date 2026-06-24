@@ -19,12 +19,6 @@ const checkStorageSupport = (): boolean => {
   try {
     if (typeof window === 'undefined') return false;
     
-    // If running inside an iframe (e.g., AI Studio preview sandbox),
-    // force inMemoryPersistence to bypass any strict third-party storage policies.
-    if (window.self !== window.top) {
-      return false;
-    }
-    
     // Check if localStorage is blocked or throws a SecurityError
     const storage = window.localStorage;
     if (!storage) return false;
@@ -38,6 +32,7 @@ const checkStorageSupport = (): boolean => {
     
     return true;
   } catch (e) {
+    console.warn('Storage check failed, falling back to inMemoryPersistence:', e);
     return false;
   }
 };
