@@ -27,6 +27,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
 import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
@@ -134,7 +135,8 @@ const INITIAL_RECORD_STATE = (cpfValue = ''): Omit<FormRecord, 'id'> => ({
   cargoMandato2026: '',
   observacoes2026: '',
   revisadoPara2026: false,
-  dataAtualizacao2026: ''
+  dataAtualizacao2026: '',
+  prioridade: '',
 });
 
 export default function App() {
@@ -491,7 +493,7 @@ export default function App() {
       'Cargo NSB', 'Delegado', 'Telefone', 'E-mail', 'Endereço', 'Cidade', 'Estado', 'CEP', 
       'RG', 'Título Eleitoral', 'Zona', 'Seção', 'Candidato Anterior', 'Cargo Disputado', 
       'Votação', 'Possui Mandato 2024', 'Cargo Mandato 2024', 'Revisado para 2026', 'Data Atualização 2026',
-      'Pretensão 2026', 'Cargo Pretendido 2026', 'Mandato 2026', 'Cargo Atuante 2026', 'Observações 202s'
+      'Pretensão 2026', 'Cargo Pretendido 2026', 'Mandato 2026', 'Cargo Atuante 2026', 'Observações 2026', 'Prioridade'
     ];
 
     const rows = combined.map(r => [
@@ -526,7 +528,8 @@ export default function App() {
       r.cargoPretendido2026 || '',
       r.mandatoVigente2026 || '',
       r.cargoMandato2026 || '',
-      `"${r.observacoes2026?.replace(/"/g, '""') || ''}"`
+      `"${r.observacoes2026?.replace(/"/g, '""') || ''}"`,
+      r.prioridade || ''
     ]);
 
     const csvContent = [
@@ -588,12 +591,61 @@ export default function App() {
       nao: savedRecords.filter(r => r.pretendeConcorrer2026 === 'Não').length,
     };
 
+    const intentionsChartData = [
+      { name: 'Sim', value: candidate2026Intents.sim },
+      { name: 'Em Estudo', value: candidate2026Intents.estudo },
+      { name: 'Não', value: candidate2026Intents.nao },
+    ];
+
+    const statesChartData = Object.keys(statesMap)
+      .map(key => ({ name: key, count: statesMap[key] }))
+      .sort((a, b) => b.count - a.count);
+
+    const genderMap: Record<string, number> = {};
+    const colorMap: Record<string, number> = {};
+    const priorityMap: Record<string, number> = {};
+    const priorityList: Array<{nome: string, uf: string, cor: string, prioridade: string}> = [];
+
+    savedRecords.forEach(r => {
+      const g = r.sexo || 'Não especificada';
+      const c = r.corRaca || 'Não especificada';
+      const p = r.prioridade || 'Sem prioridade';
+      
+      genderMap[g] = (genderMap[g] || 0) + 1;
+      colorMap[c] = (colorMap[c] || 0) + 1;
+      priorityMap[p] = (priorityMap[p] || 0) + 1;
+
+      if (r.prioridade && r.prioridade !== 'Sem prioridade' && r.prioridade !== '') {
+        priorityList.push({
+          nome: r.nomeCompleto || 'Sem Nome',
+          uf: r.estado || 'N/A',
+          cor: r.corRaca || 'N/A',
+          prioridade: r.prioridade
+        });
+      }
+    });
+
+    priorityList.sort((a, b) => {
+      const order: Record<string, number> = { 'Alta': 1, 'Média': 2, 'Baixa': 3 };
+      return (order[a.prioridade] || 4) - (order[b.prioridade] || 4);
+    });
+
+    const genderChartData = Object.keys(genderMap).map(k => ({ name: k, value: genderMap[k] }));
+    const colorChartData = Object.keys(colorMap).map(k => ({ name: k, value: colorMap[k] })).sort((a,b) => b.value - a.value);
+    const priorityChartData = Object.keys(priorityMap).map(k => ({ name: k, value: priorityMap[k] }));
+
     return {
       totalLocalUpdates,
       totalRepresented,
       nsbMembers,
       statesMap,
-      candidate2026Intents
+      candidate2026Intents,
+      intentionsChartData,
+      statesChartData,
+      genderChartData,
+      colorChartData,
+      priorityChartData,
+      priorityList
     };
   }, [savedRecords, csvRecords]);
 
@@ -1323,6 +1375,27 @@ export default function App() {
                                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none text-slate-300 placeholder-slate-600 focus:border-emerald-500"
                               />
                             </div>
+
+                            {isAdminLoggedIn && (
+                              <div className="space-y-1 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl mt-4">
+                                <label className="block text-[10px] font-bold font-mono tracking-wider text-rose-400 uppercase flex items-center gap-1.5">
+                                  <Lock className="h-3 w-3" />
+                                  Prioridade da Liderança
+                                </label>
+                                <select
+                                  name="prioridade"
+                                  value={formData.prioridade || ''}
+                                  onChange={handleChange}
+                                  className="w-full bg-slate-900 border border-rose-500/30 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                                >
+                                  <option value="">Sem prioridade definida</option>
+                                  <option value="Alta">Alta</option>
+                                  <option value="Média">Média</option>
+                                  <option value="Baixa">Baixa</option>
+                                </select>
+                                <p className="text-[9px] text-slate-400 font-mono mt-1">Este campo é visível apenas para administradores logados.</p>
+                              </div>
+                            )}
                           </motion.div>
                         )}
 
@@ -1902,109 +1975,218 @@ export default function App() {
 
             </div>
 
-            {/* Candidacy and file operations */}
+            {/* Dashboard Graphs */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Candidates Intentions distribution */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
-                <h3 className="font-bold text-white text-base">Intenção de Candidatura em 2026</h3>
-                <p className="text-xs text-slate-400">Distribuição das respostas coletadas para a pergunta: "Pretende se candidatar em 2026?".</p>
-                
-                <div className="space-y-3.5 pt-2">
-                  <div>
-                    <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                      <span className="text-emerald-400 font-bold">Sim, Pretendem disputar</span>
-                      <span className="font-mono text-slate-200">{stats.candidate2026Intents.sim}</span>
-                    </div>
-                    <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
-                        style={{ width: `${stats.totalLocalUpdates > 0 ? (stats.candidate2026Intents.sim / stats.totalLocalUpdates) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                      <span className="text-yellow-400 font-bold">Em Estudo / Indeciso</span>
-                      <span className="font-mono text-slate-200">{stats.candidate2026Intents.estudo}</span>
-                    </div>
-                    <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-yellow-500 rounded-full transition-all duration-500" 
-                        style={{ width: `${stats.totalLocalUpdates > 0 ? (stats.candidate2026Intents.estudo / stats.totalLocalUpdates) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between text-xs font-semibold mb-1">
-                      <span className="text-slate-400 font-bold">Não pretendem concorrer</span>
-                      <span className="font-mono text-slate-200">{stats.candidate2026Intents.nao}</span>
-                    </div>
-                    <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-700 rounded-full transition-all duration-500" 
-                        style={{ width: `${stats.totalLocalUpdates > 0 ? (stats.candidate2026Intents.nao / stats.totalLocalUpdates) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[350px]">
+                <div>
+                  <h3 className="font-bold text-white text-base">Intenção de Candidatura (2026)</h3>
+                  <p className="text-xs text-slate-400">Distribuição das respostas coletadas para a pergunta: "Pretende se candidatar em 2026?".</p>
                 </div>
-
-                <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400">
-                  <p>⚠️ As estatísticas acima consideram apenas os <strong className="text-white">{stats.totalLocalUpdates}</strong> registros que foram adicionados/revisados para 2026 em seu dispositivo.</p>
+                <div className="flex-1 mt-6 relative min-h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats.intentionsChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {stats.intentionsChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                        itemStyle={{ color: '#f8fafc' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4">
+                  <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
                 </div>
               </div>
 
-              {/* Advanced CSV Management Tools */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
-                <h3 className="font-bold text-white text-base flex items-center gap-2">
-                  <FolderSync className="h-5 w-5 text-emerald-400" />
-                  <span>Gerenciamento de Arquivo CSV</span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Se você tiver um novo arquivo .csv com outros dados de origem no mesmo layout, você pode importá-lo abaixo para carregar como a nova base de busca no formulário.
-                </p>
+              {/* State Distribution */}
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[350px]">
+                <div>
+                  <h3 className="font-bold text-white text-base">Distribuição por Estado</h3>
+                  <p className="text-xs text-slate-400">Quantidade de lideranças registradas por UF.</p>
+                </div>
+                <div className="flex-1 mt-6 relative min-h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={40} />
+                      <Tooltip 
+                        cursor={{ fill: '#1e293b' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                        itemStyle={{ color: '#10b981' }}
+                      />
+                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]}>
+                        {stats.statesChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
 
-                <div className="space-y-4 pt-2">
-                  {/* File Input Box */}
-                  <div className="border border-dashed border-slate-800 hover:border-slate-700 p-4 rounded-2xl bg-slate-900/40 text-center space-y-2 cursor-pointer relative group">
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleCSVUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <Download className="h-6 w-6 mx-auto text-slate-400 group-hover:text-emerald-400 transition-colors" />
-                    <p className="text-xs font-semibold text-slate-200">Selecionar ou Soltar arquivo .csv</p>
-                    <p className="text-[10px] text-slate-500 font-mono">Deve seguir as mesmas colunas estruturantes da base</p>
-                  </div>
-
-                  {importMessage && (
-                    <div className="p-3 bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl">
-                      {importMessage}
-                    </div>
-                  )}
-
-                  {errorCSV && (
-                    <div className="p-3 bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
-                      {errorCSV}
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <button
-                      id="btn-export-csv-action"
-                      onClick={handleExportCSV}
-                      className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Download className="h-4.5 w-4.5" />
-                      <span>Exportar Dados</span>
-                    </button>
-                  </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Gender Distribution */}
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[300px]">
+                <div>
+                  <h3 className="font-bold text-white text-base">Gênero</h3>
+                  <p className="text-xs text-slate-400">Distribuição por sexo / gênero.</p>
+                </div>
+                <div className="flex-1 mt-6 relative min-h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats.genderChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {stats.genderChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                        itemStyle={{ color: '#f8fafc' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
+              {/* Color/Race Distribution */}
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[300px]">
+                <div>
+                  <h3 className="font-bold text-white text-base">Cor / Raça</h3>
+                  <p className="text-xs text-slate-400">Distribuição racial declarada.</p>
+                </div>
+                <div className="flex-1 mt-6 relative min-h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={70} />
+                      <Tooltip 
+                        cursor={{ fill: '#1e293b' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                        itemStyle={{ color: '#f59e0b' }}
+                      />
+                      <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]}>
+                        {stats.colorChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#f59e0b' : '#d97706'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Priority Distribution */}
+              {isAdminLoggedIn ? (
+                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[300px]">
+                  <div>
+                    <h3 className="font-bold text-white text-base">Prioridade</h3>
+                    <p className="text-xs text-slate-400">Distribuição de níveis de prioridade.</p>
+                  </div>
+                  <div className="flex-1 mt-6 overflow-y-auto max-h-[220px] pr-2 space-y-2">
+                    {stats.priorityList.length > 0 ? (
+                      stats.priorityList.map((item, idx) => (
+                        <div key={idx} className="bg-slate-900/50 p-3 rounded-xl border border-slate-800 flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-white truncate pr-2" title={item.nome}>{item.nome}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                              item.prioridade === 'Alta' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                              item.prioridade === 'Média' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                              'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            }`}>{item.prioridade}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                            <span>UF: {item.uf}</span>
+                            <span>Cor: {item.cor}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-xs text-slate-500 pt-8">
+                        Nenhuma liderança com prioridade definida.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center min-h-[300px] opacity-60">
+                  <Lock className="h-8 w-8 text-slate-600 mb-3" />
+                  <h3 className="font-bold text-slate-500 text-sm">Prioridade Oculta</h3>
+                  <p className="text-[10px] text-slate-600 mt-1 text-center">Somente administradores têm<br/>acesso a esta informação.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Advanced CSV Management Tools */}
+            <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <FolderSync className="h-5 w-5 text-emerald-400" />
+                <span>Gerenciamento de Arquivo CSV</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Se você tiver um novo arquivo .csv com outros dados de origem no mesmo layout, você pode importá-lo abaixo para carregar como a nova base de busca no formulário.
+              </p>
+
+              <div className="space-y-4 pt-2">
+                {/* File Input Box */}
+                <div className="border border-dashed border-slate-800 hover:border-slate-700 p-4 rounded-2xl bg-slate-900/40 text-center space-y-2 cursor-pointer relative group">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <Download className="h-6 w-6 mx-auto text-slate-400 group-hover:text-emerald-400 transition-colors" />
+                  <p className="text-xs font-semibold text-slate-200">Selecionar ou Soltar arquivo .csv</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Deve seguir as mesmas colunas estruturantes da base</p>
+                </div>
+
+                {importMessage && (
+                  <div className="p-3 bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl">
+                    {importMessage}
+                  </div>
+                )}
+
+                {errorCSV && (
+                  <div className="p-3 bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
+                    {errorCSV}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    id="btn-export-csv-action"
+                    onClick={handleExportCSV}
+                    className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Download className="h-4.5 w-4.5" />
+                    <span>Exportar Dados</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </motion.div>
         ))}
@@ -2079,6 +2261,17 @@ export default function App() {
                       <div className="pt-2 border-t border-emerald-500/10">
                         <p className="text-[10px] font-mono uppercase text-slate-400 font-bold">Observações de Mobilização</p>
                         <p className="text-xs text-slate-200 bg-slate-950/40 p-2.5 rounded-xl border border-slate-900 mt-1 leading-relaxed">{selectedRecord.observacoes2026}</p>
+                      </div>
+                    )}
+                    {isAdminLoggedIn && selectedRecord.prioridade && (
+                      <div className="pt-2 border-t border-emerald-500/10">
+                        <p className="text-[10px] font-mono uppercase text-rose-400 font-bold flex items-center gap-1">
+                          <Lock className="h-3 w-3" />
+                          Prioridade da Liderança
+                        </p>
+                        <p className="text-xs text-rose-300 bg-rose-950/20 p-2.5 rounded-xl border border-rose-500/20 mt-1 font-bold">
+                          {selectedRecord.prioridade}
+                        </p>
                       </div>
                     )}
                     <p className="text-[9px] text-slate-400 font-mono pt-1 text-right">Confirmado em: {selectedRecord.dataAtualizacao2026}</p>

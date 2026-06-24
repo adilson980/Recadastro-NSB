@@ -38,6 +38,7 @@ export interface FormRecord {
   observacoes2026?: string; // Notas de revisão adicionais para 2026
   revisadoPara2026?: boolean; // Flag indicando que foi revisado
   dataAtualizacao2026?: string; // Data e hora que os dados foram confirmados para 2026
+  prioridade?: string; // Prioridade (A, B, C) (Acesso exclusivo administrador)
 }
 
 export type TabType = 'form' | 'records' | 'export';
