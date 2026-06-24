@@ -169,7 +169,8 @@ export default function App() {
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminPasswordInput === 'admin123') {
+    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'nsb2026';
+    if (adminPasswordInput === correctPassword) {
       setIsAdminLoggedIn(true);
       try {
         sessionStorage.setItem('nsb_admin_logged_in', 'true');
@@ -1653,12 +1654,6 @@ export default function App() {
                   <span>Autenticar Administrador</span>
                 </button>
               </form>
-
-              <div className="text-center pt-2 border-t border-slate-900">
-                <p className="text-[10px] text-slate-500 font-mono">
-                  Senha de demonstração: <code className="text-slate-400 bg-slate-900 px-1 py-0.5 rounded font-bold">admin123</code>
-                </p>
-              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -1924,12 +1919,6 @@ export default function App() {
                   <span>Autenticar Administrador</span>
                 </button>
               </form>
-
-              <div className="text-center pt-2 border-t border-slate-900">
-                <p className="text-[10px] text-slate-500 font-mono">
-                  Senha de demonstração: <code className="text-slate-400 bg-slate-900 px-1 py-0.5 rounded font-bold">admin123</code>
-                </p>
-              </div>
             </motion.div>
           ) : (
             <motion.div
