@@ -33,6 +33,9 @@ import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
+import { db, auth, googleProvider } from './lib/firebase';
+import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
 
 // Safe LocalStorage wrapper to prevent sandbox SecurityError in iframes
 const safeLocalStorage = {
@@ -156,33 +159,41 @@ export default function App() {
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
   // Admin Login States (compliant with LGPD)
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    try {
-      return sessionStorage.getItem('nsb_admin_logged_in') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminUser, setAdminUser] = useState<User | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'nsb2026';
-    if (adminPasswordInput === correctPassword) {
-      setIsAdminLoggedIn(true);
-      try {
-        sessionStorage.setItem('nsb_admin_logged_in', 'true');
-      } catch (err) {
-        console.warn('Session storage write failed:', err);
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAdminLoggedIn(true);
+        setAdminUser(user);
+      } else {
+        setIsAdminLoggedIn(false);
+        setAdminUser(null);
       }
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await signInWithPopup(auth, googleProvider);
       setAdminError(null);
-      setAdminPasswordInput('');
       triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
-    } else {
-      setAdminError('Senha incorreta. Tente novamente.');
-      triggerNotification('Falha na autenticação do administrador.', 'error');
+    } catch (error: any) {
+      setAdminError('Falha ao autenticar com o Google: ' + error.message);
+      triggerNotification('Falha na autenticação.', 'error');
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await signOut(auth);
+      triggerNotification('Sessão encerrada com sucesso.', 'info');
+    } catch (error) {
+      console.error("Error logging out", error);
     }
   };
 
@@ -201,21 +212,26 @@ export default function App() {
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Load baseline CSV and Local Storage records
+  // Load baseline CSV and Firebase records
   useEffect(() => {
-    // 1. Load Updated submissions from LocalStorage safely
-    const local = safeLocalStorage.getItem('nsb_coleta_dados_2026');
-    if (local) {
-      try {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) {
-          setSavedRecords(parsed);
-        } else {
-          safeLocalStorage.removeItem('nsb_coleta_dados_2026');
+    // 1. Subscribe to Firebase records ONLY if Admin
+    let unsubscribe: (() => void) | undefined;
+    if (isAdminLoggedIn) {
+      unsubscribe = onSnapshot(
+        collection(db, 'records'),
+        (snapshot) => {
+          const records: FormRecord[] = [];
+          snapshot.forEach((doc) => {
+            records.push({ id: doc.id, ...doc.data() } as FormRecord);
+          });
+          setSavedRecords(records);
+        },
+        (error) => {
+          console.error('Error fetching records from Firebase', error);
         }
-      } catch (err) {
-        console.error('Error loading records from LocalStorage', err);
-      }
+      );
+    } else {
+      setSavedRecords([]);
     }
 
     // 2. Parse original full CSV from the imported raw asset and merge
@@ -245,7 +261,11 @@ export default function App() {
     } catch (err: any) {
       console.warn('Could not parse imported dados.csv asset, using fallback dataset.', err.message);
     }
-  }, []);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [isAdminLoggedIn]);
 
   // Set transient notification helper
   const triggerNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -256,7 +276,7 @@ export default function App() {
   };
 
   // Run the CPF search
-  const handleCpfCheck = (e: React.FormEvent) => {
+  const handleCpfCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanSearch = sanitizeCPF(cpfSearch);
     if (cleanSearch.length < 11) {
@@ -264,20 +284,28 @@ export default function App() {
       return;
     }
 
-    // 1. First check if it was already updated by looking in localStorage
-    const savedMatch = savedRecords.find(r => sanitizeCPF(r.cpf) === cleanSearch);
-    if (savedMatch) {
-      setFormData({
-        ...savedMatch,
-        revisadoPara2026: true,
-        dataAtualizacao2026: savedMatch.dataAtualizacao2026 || new Date().toLocaleString('pt-BR')
-      });
-      setIsPreExisting(true);
-      setWasAlreadyUpdated(true);
-      setSearchCompleted(true);
-      setCurrentStep(1);
-      triggerNotification('Você já preencheu a revisão para 2026! Pode editar suas respostas.', 'info');
-      return;
+    // 1. Fetch directly from Firebase using CPF as ID
+    try {
+      const docRef = doc(db, 'records', cleanSearch);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const savedMatch = { id: docSnap.id, ...docSnap.data() } as FormRecord;
+        setFormData({
+          ...savedMatch,
+          revisadoPara2026: true,
+          dataAtualizacao2026: savedMatch.dataAtualizacao2026 || new Date().toLocaleString('pt-BR')
+        });
+        setIsPreExisting(true);
+        setWasAlreadyUpdated(true);
+        setSearchCompleted(true);
+        setCurrentStep(1);
+        triggerNotification('Você já preencheu a revisão para 2026! Pode editar suas respostas.', 'info');
+        return;
+      }
+    } catch (err) {
+      console.error("Error fetching record:", err);
+      // Fallback if there's an error, it will just proceed to checking CSV
     }
 
     // 2. Fall back to search in standard CSV entries (the baseline)
@@ -372,8 +400,8 @@ export default function App() {
     setFormData(INITIAL_RECORD_STATE());
   };
 
-  // Submit and Save record to Local Storage
-  const handleFormSubmit = (e: React.FormEvent) => {
+  // Submit and Save record to Firebase
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep(1) || !validateStep(2)) {
       triggerNotification('Incomplete fields. Please check previous steps.', 'error');
@@ -381,29 +409,24 @@ export default function App() {
     }
 
     const cleanCpf = sanitizeCPF(formData.cpf);
-    const existingIndex = savedRecords.findIndex(r => sanitizeCPF(r.cpf) === cleanCpf);
-    
+    const recordId = cleanCpf;
     const recordToSave: FormRecord = {
       ...formData,
-      id: existingIndex >= 0 ? savedRecords[existingIndex].id : `custom-${Date.now()}`,
+      id: recordId,
       timestamp: formData.timestamp || new Date().toLocaleString('pt-BR'),
       dataAtualizacao2026: new Date().toLocaleString('pt-BR'),
       revisadoPara2026: true
     };
 
-    let updatedList: FormRecord[] = [];
-    if (existingIndex >= 0) {
-      updatedList = [...savedRecords];
-      updatedList[existingIndex] = recordToSave;
-    } else {
-      updatedList = [recordToSave, ...savedRecords];
+    try {
+      await setDoc(doc(db, 'records', recordId), recordToSave, { merge: true });
+      setLastSavedId(recordId);
+      setCurrentStep(6); // Success Step!
+      triggerNotification('Dados salvos com sucesso!', 'success');
+    } catch (err) {
+      console.error('Error saving document: ', err);
+      triggerNotification('Erro ao salvar os dados. Tente novamente.', 'error');
     }
-
-    safeLocalStorage.setItem('nsb_coleta_dados_2026', JSON.stringify(updatedList));
-    setSavedRecords(updatedList);
-    setLastSavedId(recordToSave.id);
-    setCurrentStep(6); // Success Step!
-    triggerNotification('Dados salvos com sucesso no armazenamento local!', 'success');
   };
 
   // Restart after submission success
@@ -416,17 +439,20 @@ export default function App() {
     setDeletingRecordId(id);
   };
 
-  const confirmDeleteRecord = () => {
+  const confirmDeleteRecord = async () => {
     if (deletingRecordId) {
       const id = deletingRecordId;
-      const filtered = savedRecords.filter(r => r.id !== id);
-      safeLocalStorage.setItem('nsb_coleta_dados_2026', JSON.stringify(filtered));
-      setSavedRecords(filtered);
-      triggerNotification('Registro deletado.', 'info');
-      if (selectedRecord && selectedRecord.id === id) {
-        setSelectedRecord(null);
+      try {
+        await deleteDoc(doc(db, 'records', id));
+        triggerNotification('Registro deletado.', 'info');
+        if (selectedRecord && selectedRecord.id === id) {
+          setSelectedRecord(null);
+        }
+        setDeletingRecordId(null);
+      } catch (err) {
+        console.error('Error deleting document: ', err);
+        triggerNotification('Erro ao deletar registro.', 'error');
       }
-      setDeletingRecordId(null);
     }
   };
 
@@ -697,12 +723,8 @@ export default function App() {
                 <span>Admin Autenticado (LGPD)</span>
                 <button
                   onClick={() => {
-                    setIsAdminLoggedIn(false);
-                    try {
-                      sessionStorage.removeItem('nsb_admin_logged_in');
-                    } catch {}
+                    handleAdminLogout();
                     setActiveTab('form');
-                    triggerNotification('Sessão administrativa finalizada com sucesso.', 'info');
                   }}
                   className="ml-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[9px] px-1.5 py-0.5 rounded transition-colors cursor-pointer"
                 >
@@ -1617,41 +1639,19 @@ export default function App() {
               </div>
 
               <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 font-mono">Senha do Administrador</label>
-                  <div className="relative">
-                    <input
-                      type={showAdminPassword ? 'text' : 'password'}
-                      value={adminPasswordInput}
-                      onChange={(e) => {
-                        setAdminPasswordInput(e.target.value);
-                        setAdminError(null);
-                      }}
-                      placeholder="Senha de administrador..."
-                      className="w-full bg-slate-900 border border-slate-800 text-sm rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminPassword(!showAdminPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                    >
-                      {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {adminError && (
-                    <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-rose-500" />
-                      {adminError}
-                    </p>
-                  )}
-                </div>
+                {adminError && (
+                  <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-rose-500" />
+                    {adminError}
+                  </p>
+                )}
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-950/30"
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
                 >
-                  <Unlock className="h-4 w-4" />
-                  <span>Autenticar Administrador</span>
+                  <Unlock className="h-4 w-4 text-emerald-400" />
+                  <span>Entrar com Conta Google</span>
                 </button>
               </form>
             </motion.div>
@@ -1882,41 +1882,19 @@ export default function App() {
               </div>
 
               <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 font-mono">Senha do Administrador</label>
-                  <div className="relative">
-                    <input
-                      type={showAdminPassword ? 'text' : 'password'}
-                      value={adminPasswordInput}
-                      onChange={(e) => {
-                        setAdminPasswordInput(e.target.value);
-                        setAdminError(null);
-                      }}
-                      placeholder="Senha de administrador..."
-                      className="w-full bg-slate-900 border border-slate-800 text-sm rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminPassword(!showAdminPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                    >
-                      {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {adminError && (
-                    <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-rose-500" />
-                      {adminError}
-                    </p>
-                  )}
-                </div>
+                {adminError && (
+                  <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-rose-500" />
+                    {adminError}
+                  </p>
+                )}
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-emerald-950/30"
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
                 >
-                  <Unlock className="h-4 w-4" />
-                  <span>Autenticar Administrador</span>
+                  <Unlock className="h-4 w-4 text-emerald-400" />
+                  <span>Entrar com Conta Google</span>
                 </button>
               </form>
             </motion.div>

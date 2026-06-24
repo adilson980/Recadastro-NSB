@@ -1,0 +1,50 @@
+{
+  "collections": [
+    {
+      "collection_name": "records",
+      "description": "Form records for NSB members",
+      "fields": [
+        { "name": "timestamp", "type": "string" },
+        { "name": "filiadoNsb", "type": "string" },
+        { "name": "cargoNsb", "type": "string" },
+        { "name": "delegado", "type": "string" },
+        { "name": "nomeCompleto", "type": "string" },
+        { "name": "dataNascimento", "type": "string" },
+        { "name": "rg", "type": "string" },
+        { "name": "cpf", "type": "string" },
+        { "name": "sexo", "type": "string" },
+        { "name": "corRaca", "type": "string" },
+        { "name": "tituloEleitorial", "type": "string" },
+        { "name": "zona", "type": "string" },
+        { "name": "secao", "type": "string" },
+        { "name": "endereco", "type": "string" },
+        { "name": "cidade", "type": "string" },
+        { "name": "estado", "type": "string" },
+        { "name": "aeroportoOrigem", "type": "string" },
+        { "name": "telefone", "type": "string" },
+        { "name": "cep", "type": "string" },
+        { "name": "email", "type": "string" },
+        { "name": "jaFoiCandidato", "type": "string" },
+        { "name": "cargoDisputado", "type": "string" },
+        { "name": "anoUltimaEleicao", "type": "string" },
+        { "name": "votacao", "type": "string" },
+        { "name": "possuiMandato2024", "type": "string" },
+        { "name": "cargoMandato2024", "type": "string" },
+        { "name": "pretendeConcorrer2026", "type": "string" },
+        { "name": "cargoPretendido2026", "type": "string" },
+        { "name": "mandatoVigente2026", "type": "string" },
+        { "name": "cargoMandato2026", "type": "string" },
+        { "name": "observacoes2026", "type": "string" },
+        { "name": "revisadoPara2026", "type": "boolean" },
+        { "name": "dataAtualizacao2026", "type": "string" },
+        { "name": "prioridade", "type": "string" }
+      ]
+    }
+  ],
+  "security_rules": {
+    "records": {
+      "read": "true",
+      "write": "true"
+    }
+  }
+}
