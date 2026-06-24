@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
-  User, 
   MapPin, 
   FileText, 
   CheckCircle, 
@@ -27,13 +26,13 @@ import {
   EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
 import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
-import { db, auth, googleProvider } from './lib/firebase';
+import { db, getAuthInstance, googleProvider } from './lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
 
@@ -142,6 +141,41 @@ const INITIAL_RECORD_STATE = (cpfValue = ''): Omit<FormRecord, 'id'> => ({
   prioridade: '',
 });
 
+interface SafeResponsiveContainerProps {
+  children: (width: number, height: number) => React.ReactNode;
+}
+
+const SafeResponsiveContainer: React.FC<SafeResponsiveContainerProps> = ({ children }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width, height } = entries[0].contentRect;
+      setDimensions({ width, height });
+    });
+
+    resizeObserver.observe(containerRef.current);
+    
+    // Set initial size
+    const rect = containerRef.current.getBoundingClientRect();
+    setDimensions({ width: rect.width || 300, height: rect.height || 220 });
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full h-full min-h-[220px]">
+      {dimensions.width > 0 && dimensions.height > 0 && children(dimensions.width, dimensions.height)}
+    </div>
+  );
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('form');
   const [csvRecords, setCsvRecords] = useState<FormRecord[]>(fallbackCSVRecords);
@@ -164,7 +198,14 @@ export default function App() {
   const [adminError, setAdminError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    // If running in a sandboxed iframe, delay loading of Firebase Auth's session-checking background iframe
+    // until the user actually leaves the 'form' tab (such as clicking 'records' or 'export').
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+    if (isInIframe && activeTab === 'form') {
+      return;
+    }
+
+    const unsubscribeAuth = onAuthStateChanged(getAuthInstance(), (user) => {
       if (user) {
         setIsAdminLoggedIn(true);
         setAdminUser(user);
@@ -174,12 +215,12 @@ export default function App() {
       }
     });
     return () => unsubscribeAuth();
-  }, []);
+  }, [activeTab]);
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(getAuthInstance(), googleProvider);
       setAdminError(null);
       triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
     } catch (error: any) {
@@ -190,7 +231,7 @@ export default function App() {
 
   const handleAdminLogout = async () => {
     try {
-      await signOut(auth);
+      await signOut(getAuthInstance());
       triggerNotification('Sessão encerrada com sucesso.', 'info');
     } catch (error) {
       console.error("Error logging out", error);
@@ -350,6 +391,12 @@ export default function App() {
       processedValue = formatPhone(value);
     } else if (name === 'cpf') {
       processedValue = formatCPF(value);
+    }
+
+    if (processedValue && typeof processedValue === 'string') {
+      if (type === 'text' || type === 'email' || type === 'textarea' || (e.target && e.target.tagName === 'TEXTAREA')) {
+        processedValue = processedValue.toUpperCase();
+      }
     }
 
     setFormData(prev => ({
@@ -1695,7 +1742,7 @@ export default function App() {
                     type="text"
                     placeholder="Filtrar por nome, CPF ou cidade"
                     value={filters.search}
-                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value.toUpperCase() }))}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 pl-3 pr-9 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                   />
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1952,28 +1999,30 @@ export default function App() {
                   <p className="text-xs text-slate-400">Distribuição das respostas coletadas para a pergunta: "Pretende se candidatar em 2026?".</p>
                 </div>
                 <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.intentionsChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {stats.intentionsChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
-                        itemStyle={{ color: '#f8fafc' }}
-                      />
-                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <SafeResponsiveContainer>
+                    {(width, height) => (
+                      <PieChart width={width} height={height}>
+                        <Pie
+                          data={stats.intentionsChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {stats.intentionsChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                          itemStyle={{ color: '#f8fafc' }}
+                        />
+                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                      </PieChart>
+                    )}
+                  </SafeResponsiveContainer>
                 </div>
                 <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4">
                   <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
@@ -1987,22 +2036,24 @@ export default function App() {
                   <p className="text-xs text-slate-400">Quantidade de lideranças registradas por UF.</p>
                 </div>
                 <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={40} />
-                      <Tooltip 
-                        cursor={{ fill: '#1e293b' }}
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
-                        itemStyle={{ color: '#10b981' }}
-                      />
-                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]}>
-                        {stats.statesChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <SafeResponsiveContainer>
+                    {(width, height) => (
+                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={40} />
+                        <Tooltip 
+                          cursor={{ fill: '#1e293b' }}
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                          itemStyle={{ color: '#10b981' }}
+                        />
+                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]}>
+                          {stats.statesChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    )}
+                  </SafeResponsiveContainer>
                 </div>
               </div>
             </div>
@@ -2015,28 +2066,30 @@ export default function App() {
                   <p className="text-xs text-slate-400">Distribuição por sexo / gênero.</p>
                 </div>
                 <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.genderChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {stats.genderChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
-                        itemStyle={{ color: '#f8fafc' }}
-                      />
-                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <SafeResponsiveContainer>
+                    {(width, height) => (
+                      <PieChart width={width} height={height}>
+                        <Pie
+                          data={stats.genderChartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {stats.genderChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                          itemStyle={{ color: '#f8fafc' }}
+                        />
+                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                      </PieChart>
+                    )}
+                  </SafeResponsiveContainer>
                 </div>
               </div>
 
@@ -2047,22 +2100,24 @@ export default function App() {
                   <p className="text-xs text-slate-400">Distribuição racial declarada.</p>
                 </div>
                 <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={70} />
-                      <Tooltip 
-                        cursor={{ fill: '#1e293b' }}
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
-                        itemStyle={{ color: '#f59e0b' }}
-                      />
-                      <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]}>
-                        {stats.colorChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? '#f59e0b' : '#d97706'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <SafeResponsiveContainer>
+                    {(width, height) => (
+                      <BarChart width={width} height={height} data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 30, left: -10, bottom: 0 }}>
+                        <XAxis type="number" hide />
+                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={70} />
+                        <Tooltip 
+                          cursor={{ fill: '#1e293b' }}
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                          itemStyle={{ color: '#f59e0b' }}
+                        />
+                        <Bar dataKey="value" fill="#f59e0b" radius={[0, 4, 4, 0]}>
+                          {stats.colorChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={index === 0 ? '#f59e0b' : '#d97706'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    )}
+                  </SafeResponsiveContainer>
                 </div>
               </div>
 

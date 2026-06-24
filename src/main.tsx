@@ -38,8 +38,8 @@ if (typeof window !== 'undefined') {
 
   window.onerror = (message, source, lineno, colno, error) => {
     const msgStr = String(message).toLowerCase();
-    if (msgStr.includes('script error') || msgStr === 'script error.') {
-      console.warn('Suppressed cross-origin Script error in sandboxed iframe environment:', message);
+    if (msgStr.includes('script error') || msgStr === 'script error.' || msgStr.includes('resizeobserver')) {
+      console.warn('Suppressed cross-origin/ResizeObserver error in sandboxed iframe environment:', message);
       return true; // prevent error bubbling up as uncaught script error
     }
     handleError(String(message), String(source), lineno || 0, colno || 0, error);
@@ -48,8 +48,8 @@ if (typeof window !== 'undefined') {
 
   window.addEventListener('error', (event) => {
     const msgStr = String(event.message || '').toLowerCase();
-    if (msgStr.includes('script error') || msgStr === 'script error.') {
-      console.warn('Suppressed uncaught Script error event in sandboxed iframe:', event);
+    if (msgStr.includes('script error') || msgStr === 'script error.' || msgStr.includes('resizeobserver') || !event.message) {
+      console.warn('Suppressed uncaught Script/ResizeObserver error event in sandboxed iframe:', event);
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
@@ -57,8 +57,8 @@ if (typeof window !== 'undefined') {
   }, true);
 
   window.addEventListener('unhandledrejection', (event) => {
-    const reasonMsg = String(event.reason?.message || event.reason).toLowerCase();
-    if (reasonMsg.includes('script error') || reasonMsg === 'script error.') {
+    const reasonMsg = String(event.reason?.message || event.reason || '').toLowerCase();
+    if (reasonMsg.includes('script error') || reasonMsg === 'script error.' || reasonMsg.includes('resizeobserver')) {
       console.warn('Suppressed unhandled rejection Script error in sandboxed iframe:', event.reason);
       return;
     }
