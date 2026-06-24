@@ -32,9 +32,9 @@ import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
-import { db, getAuthInstance, googleProvider } from './lib/firebase';
+import { db, app } from './lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 
 // Safe LocalStorage wrapper to prevent sandbox SecurityError in iframes
 const safeLocalStorage = {
@@ -205,7 +205,7 @@ export default function App() {
       return;
     }
 
-    const unsubscribeAuth = onAuthStateChanged(getAuthInstance(), (user) => {
+    const unsubscribeAuth = onAuthStateChanged(getAuth(app), (user) => {
       if (user) {
         setIsAdminLoggedIn(true);
         setAdminUser(user);
@@ -221,27 +221,29 @@ export default function App() {
     e.preventDefault();
     try {
       setAdminError('Iniciando login...');
-      await signInWithPopup(getAuthInstance(), googleProvider);
+      const authObj = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(authObj, provider);
       setAdminError(null);
       triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
     } catch (error: any) {
-      console.error("Auth error details:", error);
+      console.error("Auth error:", error);
       const isIframe = typeof window !== 'undefined' && window.self !== window.top;
       let msg = error.message;
       if (error.code) {
         msg += ` (Code: ${error.code})`;
       }
-      if (isIframe) {
-        msg += ' [Você está no modo de visualização. Tente abrir em uma nova guia.]';
+      if (isIframe && msg.includes('popup')) {
+        msg += ' [Como você está no modo de visualização, o login pode falhar. Tente abrir em uma NOVA GUIA.]';
       }
-      setAdminError('Erro de autenticação: ' + msg);
+      setAdminError('Erro de Autenticação: ' + msg);
       triggerNotification('Falha na autenticação.', 'error');
     }
   };
 
   const handleAdminLogout = async () => {
     try {
-      await signOut(getAuthInstance());
+      await signOut(getAuth(app));
       triggerNotification('Sessão encerrada com sucesso.', 'info');
     } catch (error) {
       console.error("Error logging out", error);
