@@ -2109,15 +2109,15 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Candidates Intentions distribution */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 min-h-[350px]">
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 min-h-[400px] shadow-xl">
                 <div>
                   <h3 className="font-bold text-white text-base">Intenção de Candidatura (2026)</h3>
                   <p className="text-xs text-slate-400">Distribuição das respostas coletadas para a pergunta: "Pretende se candidatar em 2026?".</p>
                 </div>
-                <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
                   {/* Left: Chart */}
-                  <div className="flex flex-col">
-                    <div className="flex-1 relative min-h-[220px]">
+                  <div className="flex flex-col justify-between h-full">
+                    <div className="flex-1 relative min-h-[250px]">
                       <SafeResponsiveContainer>
                         {(width, height) => (
                           <PieChart width={width} height={height}>
@@ -2125,11 +2125,11 @@ export default function App() {
                               data={stats.intentionsChartData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={45}
-                              outerRadius={65}
+                              innerRadius={60}
+                              outerRadius={85}
                               paddingAngle={5}
                               dataKey="value"
-                              label={{ fill: '#94a3b8', fontSize: 12 }}
+                              label={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }}
                             >
                               {stats.intentionsChartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
@@ -2139,42 +2139,42 @@ export default function App() {
                               contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
                               itemStyle={{ color: '#f8fafc' }}
                             />
-                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '13px', color: '#94a3b8', paddingTop: '10px' }} />
                           </PieChart>
                         )}
                       </SafeResponsiveContainer>
                     </div>
-                    <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4">
+                    <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4 shadow-inner">
                       <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
                     </div>
                   </div>
 
                   {/* Right: Table */}
-                  <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                  <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden flex flex-col h-full shadow-inner">
                     <div className="px-4 py-3 border-b border-slate-800 bg-emerald-950/20">
                       <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Lideranças com Intenção ("Sim")</h4>
                     </div>
-                    <div className="overflow-y-auto max-h-[260px] md:max-h-full">
+                    <div className="overflow-y-auto flex-1">
                       <table className="w-full text-left border-collapse">
-                        <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-[10px] uppercase text-slate-500 font-mono">
+                        <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-[10px] uppercase text-slate-500 font-mono shadow-sm z-10">
                           <tr>
-                            <th className="py-2 px-4 font-semibold">Nome</th>
-                            <th className="py-2 px-4 font-semibold">UF</th>
-                            <th className="py-2 px-4 font-semibold">Cargo Eletivo</th>
+                            <th className="py-3 px-4 font-semibold">Nome</th>
+                            <th className="py-3 px-4 font-semibold">UF</th>
+                            <th className="py-3 px-4 font-semibold">Cargo Eletivo</th>
                           </tr>
                         </thead>
                         <tbody className="text-xs text-slate-300">
                           {stats.candidates2026List.length > 0 ? (
                             stats.candidates2026List.map((cand, idx) => (
-                              <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                                <td className="py-2 px-4 font-semibold text-white truncate max-w-[150px]">{cand.nome}</td>
-                                <td className="py-2 px-4 text-slate-400 font-mono">{cand.uf}</td>
-                                <td className="py-2 px-4 text-emerald-300 truncate max-w-[120px]">{cand.cargo}</td>
+                              <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/80 transition-colors">
+                                <td className="py-2.5 px-4 font-semibold text-white truncate max-w-[150px]">{cand.nome}</td>
+                                <td className="py-2.5 px-4 text-slate-400 font-mono">{cand.uf}</td>
+                                <td className="py-2.5 px-4 text-emerald-300 truncate max-w-[120px]">{cand.cargo}</td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={3} className="py-6 px-4 text-center text-slate-500 italic">Nenhum registro com intenção confirmada.</td>
+                              <td colSpan={3} className="py-8 px-4 text-center text-slate-500 italic">Nenhum registro com intenção confirmada.</td>
                             </tr>
                           )}
                         </tbody>
@@ -2185,24 +2185,24 @@ export default function App() {
               </div>
 
               {/* State Distribution */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[350px]">
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 min-h-[450px] shadow-xl">
                 <div>
                   <h3 className="font-bold text-white text-base">Distribuição por Estado</h3>
                   <p className="text-xs text-slate-400">Quantidade de lideranças registradas por UF.</p>
                 </div>
-                <div className="flex-1 mt-6 relative min-h-[220px]">
+                <div className="flex-1 mt-6 relative w-full h-full min-h-[350px]">
                   <SafeResponsiveContainer>
                     {(width, height) => (
-                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                         <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={40} />
+                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }} width={50} />
                         <Tooltip 
                           cursor={{ fill: '#1e293b' }}
                           contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
-                          itemStyle={{ color: '#10b981' }}
+                          itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
                         />
-                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]}>
-                          <LabelList dataKey="count" position="right" fill="#94a3b8" fontSize={12} />
+                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24}>
+                          <LabelList dataKey="count" position="right" fill="#cbd5e1" fontSize={13} fontWeight="bold" />
                           {stats.statesChartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
                           ))}
