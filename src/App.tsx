@@ -723,6 +723,14 @@ export default function App() {
       nao: savedRecords.filter(r => r.pretendeConcorrer2026 === 'Não').length,
     };
 
+    const candidates2026List = savedRecords
+      .filter(r => r.pretendeConcorrer2026 === 'Sim')
+      .map(r => ({
+        nome: (r.nomeCompleto || '').split(' ').slice(0, 2).join(' '),
+        uf: r.estado || 'N/A',
+        cargo: r.cargoPretendido2026 || 'Não especificado'
+      }));
+
     const intentionsChartData = [
       { name: 'Sim', value: candidate2026Intents.sim },
       { name: 'Em Estudo', value: candidate2026Intents.estudo },
@@ -772,6 +780,7 @@ export default function App() {
       nsbMembers,
       statesMap,
       candidate2026Intents,
+      candidates2026List,
       intentionsChartData,
       statesChartData,
       genderChartData,
@@ -2100,40 +2109,78 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Candidates Intentions distribution */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[350px]">
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 min-h-[350px]">
                 <div>
                   <h3 className="font-bold text-white text-base">Intenção de Candidatura (2026)</h3>
                   <p className="text-xs text-slate-400">Distribuição das respostas coletadas para a pergunta: "Pretende se candidatar em 2026?".</p>
                 </div>
-                <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <SafeResponsiveContainer>
-                    {(width, height) => (
-                      <PieChart width={width} height={height}>
-                        <Pie
-                          data={stats.intentionsChartData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={45}
-                          outerRadius={65}
-                          paddingAngle={5}
-                          dataKey="value"
-                          label={{ fill: '#94a3b8', fontSize: 12 }}
-                        >
-                          {stats.intentionsChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
-                          itemStyle={{ color: '#f8fafc' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
-                      </PieChart>
-                    )}
-                  </SafeResponsiveContainer>
-                </div>
-                <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4">
-                  <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
+                <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left: Chart */}
+                  <div className="flex flex-col">
+                    <div className="flex-1 relative min-h-[220px]">
+                      <SafeResponsiveContainer>
+                        {(width, height) => (
+                          <PieChart width={width} height={height}>
+                            <Pie
+                              data={stats.intentionsChartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={45}
+                              outerRadius={65}
+                              paddingAngle={5}
+                              dataKey="value"
+                              label={{ fill: '#94a3b8', fontSize: 12 }}
+                            >
+                              {stats.intentionsChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                              itemStyle={{ color: '#f8fafc' }}
+                            />
+                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                          </PieChart>
+                        )}
+                      </SafeResponsiveContainer>
+                    </div>
+                    <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4">
+                      <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
+                    </div>
+                  </div>
+
+                  {/* Right: Table */}
+                  <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-slate-800 bg-emerald-950/20">
+                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Lideranças com Intenção ("Sim")</h4>
+                    </div>
+                    <div className="overflow-y-auto max-h-[260px] md:max-h-full">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-[10px] uppercase text-slate-500 font-mono">
+                          <tr>
+                            <th className="py-2 px-4 font-semibold">Nome</th>
+                            <th className="py-2 px-4 font-semibold">UF</th>
+                            <th className="py-2 px-4 font-semibold">Cargo Eletivo</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs text-slate-300">
+                          {stats.candidates2026List.length > 0 ? (
+                            stats.candidates2026List.map((cand, idx) => (
+                              <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                <td className="py-2 px-4 font-semibold text-white truncate max-w-[150px]">{cand.nome}</td>
+                                <td className="py-2 px-4 text-slate-400 font-mono">{cand.uf}</td>
+                                <td className="py-2 px-4 text-emerald-300 truncate max-w-[120px]">{cand.cargo}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={3} className="py-6 px-4 text-center text-slate-500 italic">Nenhum registro com intenção confirmada.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </div>
 
