@@ -1,0 +1,6 @@
+{
+  "name": "Coleta de Dados",
+  "description": "Aplicativo mobile moderno para coleta de formulários e salvamento automático em CSV no armazenamento local.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
