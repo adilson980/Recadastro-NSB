@@ -763,8 +763,8 @@ export default function App() {
       <header id="app-header" className="border-b border-slate-800 bg-slate-950/60 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-auto bg-white rounded-xl overflow-hidden flex items-center justify-center border border-emerald-500/20 px-2 py-1">
-              <img src="/logo.png" alt="NSB Logo" className="h-full w-auto object-contain" />
+            <div className="p-2.5 bg-emerald-700/20 text-emerald-400 rounded-xl border border-emerald-500/20 shadow-inner">
+              <Sparkles className="h-6 w-6" />
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight text-white flex items-center gap-2">
@@ -866,8 +866,8 @@ export default function App() {
                     className="flex-1 flex flex-col justify-between py-6"
                   >
                     <div className="space-y-6 pt-4 text-center">
-                      <div className="mx-auto w-16 h-16 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-950/40">
-                        <UserCheck className="h-8 w-8 text-white" />
+                      <div className="mx-auto w-32 h-auto flex items-center justify-center">
+                        <img src="/logo.png" alt="NSB Logo" className="w-full h-auto object-contain" />
                       </div>
                       
                       <div className="space-y-2">
@@ -1607,9 +1607,6 @@ export default function App() {
               
               {/* NSB Welcome Board */}
               <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
-                <div className="w-full h-32 bg-white rounded-2xl flex items-center justify-center p-2 border border-slate-800 overflow-hidden">
-                   <img src="/logo.png" alt="NSB Logo" className="h-full w-auto object-contain" />
-                </div>
                 <div className="inline-flex py-1 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-400 font-mono font-bold tracking-wider">
                   SISTEMA OFICIAL DE MOBILIZAÇÃO
                 </div>
