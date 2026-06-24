@@ -220,23 +220,21 @@ export default function App() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Add a timeout to detect if popup hangs indefinitely (common in strict iframe sandboxes)
-      const popupPromise = signInWithPopup(getAuthInstance(), googleProvider);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('A janela de login não abriu ou não respondeu (bloqueio de pop-up). Para acessar o painel, abra o aplicativo em uma nova guia clicando no ícone no canto superior direito.')), 15000)
-      );
-      
-      await Promise.race([popupPromise, timeoutPromise]);
+      setAdminError('Iniciando login...');
+      await signInWithPopup(getAuthInstance(), googleProvider);
       setAdminError(null);
       triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
     } catch (error: any) {
       console.error("Auth error details:", error);
       const isIframe = typeof window !== 'undefined' && window.self !== window.top;
       let msg = error.message;
-      if (isIframe && (msg.includes('popup') || msg.includes('cross-origin') || error.code === 'auth/popup-closed-by-user')) {
-        msg += ' (Como você está na visualização, abra o app em uma nova guia usando o botão no canto superior direito para fazer login).';
+      if (error.code) {
+        msg += ` (Code: ${error.code})`;
       }
-      setAdminError('Falha ao autenticar: ' + msg);
+      if (isIframe) {
+        msg += ' [Você está no modo de visualização. Tente abrir em uma nova guia.]';
+      }
+      setAdminError('Erro de autenticação: ' + msg);
       triggerNotification('Falha na autenticação.', 'error');
     }
   };
