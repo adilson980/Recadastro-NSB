@@ -23,7 +23,9 @@ import {
   Lock,
   Unlock,
   ShieldCheck,
-  EyeOff
+  EyeOff,
+  Camera,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
@@ -138,6 +140,9 @@ const INITIAL_RECORD_STATE = (cpfValue = ''): Omit<FormRecord, 'id'> => ({
   observacoes2026: '',
   revisadoPara2026: false,
   dataAtualizacao2026: '',
+  foto1: '',
+  foto2: '',
+  foto3: '',
   prioridade: '',
 });
 
@@ -191,6 +196,8 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Omit<FormRecord, 'id'>>(INITIAL_RECORD_STATE());
   const [lastSavedId, setLastSavedId] = useState<string | null>(null);
+  const [showPhotoPopup, setShowPhotoPopup] = useState(false);
+  const [hasSeenPhotoReqs, setHasSeenPhotoReqs] = useState(false);
 
   // Admin Login States (compliant with LGPD)
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -423,6 +430,45 @@ export default function App() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, photoKey: 'foto1'|'foto2'|'foto3') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        
+        setFormData(prev => ({ ...prev, [photoKey]: dataUrl }));
+      };
+    };
   };
 
   // Step validation
@@ -1401,21 +1447,70 @@ export default function App() {
                             </div>
 
                             {formData.pretendeConcorrer2026 === 'Sim' && (
-                              <div className="space-y-1 animate-fadeIn">
-                                <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Qual Cargo?</label>
-                                <select
-                                  name="cargoPretendido2026"
-                                  value={formData.cargoPretendido2026 || ''}
-                                  onChange={handleChange}
-                                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                >
-                                  <option value="">Selecione o cargo</option>
-                                  <option value="PRESIDENTE DA REPÚBLICA">PRESIDENTE DA REPÚBLICA</option>
-                                  <option value="SENADOR(A) DA REPÚBLICA">SENADOR(A) DA REPÚBLICA</option>
-                                  <option value="DEPUTADO(A) FEDERAL">DEPUTADO(A) FEDERAL</option>
-                                  <option value="GOVERNADOR(A)">GOVERNADOR(A)</option>
-                                  <option value="DEPUTADO(A) ESTADUAL">DEPUTADO(A) ESTADUAL</option>
-                                </select>
+                              <div className="space-y-4 animate-fadeIn">
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Qual Cargo?</label>
+                                  <select
+                                    name="cargoPretendido2026"
+                                    value={formData.cargoPretendido2026 || ''}
+                                    onChange={handleChange}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                                  >
+                                    <option value="">Selecione o cargo</option>
+                                    <option value="PRESIDENTE DA REPÚBLICA">PRESIDENTE DA REPÚBLICA</option>
+                                    <option value="SENADOR(A) DA REPÚBLICA">SENADOR(A) DA REPÚBLICA</option>
+                                    <option value="DEPUTADO(A) FEDERAL">DEPUTADO(A) FEDERAL</option>
+                                    <option value="GOVERNADOR(A)">GOVERNADOR(A)</option>
+                                    <option value="DEPUTADO(A) ESTADUAL">DEPUTADO(A) ESTADUAL</option>
+                                  </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
+                                    Fotos para Banca de Heteroidentificação
+                                  </label>
+                                  {!hasSeenPhotoReqs ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPhotoPopup(true)}
+                                      className="w-full py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-emerald-400 font-semibold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
+                                    >
+                                      <Camera className="h-4 w-4" />
+                                      Adicionar Fotos
+                                    </button>
+                                  ) : (
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {(['foto1', 'foto2', 'foto3'] as const).map((key, idx) => (
+                                        <div key={key} className="relative aspect-square bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-center overflow-hidden">
+                                          {formData[key] ? (
+                                            <>
+                                              <img src={formData[key]} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                                              <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({ ...prev, [key]: '' }))}
+                                                className="absolute top-1 right-1 bg-rose-500/80 p-1 rounded-full text-white hover:bg-rose-500"
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-400 transition-colors">
+                                              <Upload className="h-5 w-5 mb-1" />
+                                              <span className="text-[9px] font-mono font-bold">FOTO {idx + 1}</span>
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                capture="environment"
+                                                className="hidden"
+                                                onChange={(e) => handlePhotoUpload(e, key)}
+                                              />
+                                            </label>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
 
@@ -2438,6 +2533,64 @@ export default function App() {
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Excluir
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal - Photo Requirements Popup */}
+      <AnimatePresence>
+        {showPhotoPopup && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 rounded-3xl border border-slate-800 w-full max-w-sm overflow-hidden flex flex-col text-left text-slate-100 shadow-2xl"
+            >
+              <div className="p-5 border-b border-slate-800 bg-slate-950/50 flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                  <Camera className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Exigências das Fotos</h3>
+                  <p className="text-[10px] text-slate-400">Banca de Heteroidentificação</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Para o envio das imagens utilizadas no processo de Banca de Heteroidentificação, certifique-se de cumprir os seguintes requisitos:
+                </p>
+                <ul className="text-xs space-y-2 text-slate-300">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400 font-bold">•</span>
+                    Fundo claro ou branco.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400 font-bold">•</span>
+                    Boa iluminação focada no rosto.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400 font-bold">•</span>
+                    Rosto totalmente descoberto (sem óculos escuros, boné ou chapéu).
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400 font-bold">•</span>
+                    Enquadramento do busto para cima.
+                  </li>
+                </ul>
+              </div>
+              <div className="p-4 bg-slate-950/50 border-t border-slate-800">
+                <button
+                  onClick={() => {
+                    setShowPhotoPopup(false);
+                    setHasSeenPhotoReqs(true);
+                  }}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors"
+                >
+                  Entendi e Quero Adicionar
                 </button>
               </div>
             </motion.div>

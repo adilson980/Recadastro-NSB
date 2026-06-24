@@ -38,6 +38,9 @@ export interface FormRecord {
   observacoes2026?: string; // Notas de revisão adicionais para 2026
   revisadoPara2026?: boolean; // Flag indicando que foi revisado
   dataAtualizacao2026?: string; // Data e hora que os dados foram confirmados para 2026
+  foto1?: string; // Foto 1 para Banca de Heteroidentificação
+  foto2?: string; // Foto 2
+  foto3?: string; // Foto 3
   prioridade?: string; // Prioridade (A, B, C) (Acesso exclusivo administrador)
 }
 
