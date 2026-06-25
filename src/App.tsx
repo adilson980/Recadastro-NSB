@@ -214,25 +214,35 @@ export default function App() {
 
     const unsubscribeAuth = onAuthStateChanged(getAuth(app), (user) => {
       if (user) {
-        setIsAdminLoggedIn(true);
-        setAdminUser(user);
+        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || ['j.adilson_bezerra@hotmail.com', 'euclides.vs@gmail.com'];
+        if (user.email && allowedEmails.includes(user.email)) {
+          setIsAdminLoggedIn(true);
+          setAdminUser(user);
+        } else {
+          signOut(getAuth(app));
+          setAdminError('Acesso negado: Email não autorizado.');
+        }
       } else {
-        setIsAdminLoggedIn(false);
-        setAdminUser(null);
+        if (!isAdminLoggedIn) {
+          setIsAdminLoggedIn(false);
+          setAdminUser(null);
+        }
       }
     });
     return () => unsubscribeAuth();
-  }, [activeTab]);
+  }, [activeTab, isAdminLoggedIn]);
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
+  const [adminPassword, setAdminPassword] = useState('');
+
+  const handleAdminLoginGoogle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setAdminError('Iniciando login...');
+      setAdminError('Iniciando login com Google...');
       const authObj = getAuth(app);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(authObj, provider);
       setAdminError(null);
-      triggerNotification('Acesso de administrador concedido com sucesso!', 'success');
+      triggerNotification('Verificando autorização...', 'success');
     } catch (error: any) {
       console.error("Auth error:", error);
       const isIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -245,6 +255,18 @@ export default function App() {
       }
       setAdminError('Erro de Autenticação: ' + msg);
       triggerNotification('Falha na autenticação.', 'error');
+    }
+  };
+
+  const handleAdminLoginPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'nsb2026admin';
+    if (adminPassword === correctPassword) {
+      setIsAdminLoggedIn(true);
+      setAdminError(null);
+      triggerNotification('Acesso de administrador concedido!', 'success');
+    } else {
+      setAdminError('Senha incorreta.');
     }
   };
 
@@ -1801,7 +1823,7 @@ export default function App() {
                 </ul>
               </div>
 
-              <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-4">
                 {adminError && (
                   <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-rose-500" />
@@ -1809,14 +1831,44 @@ export default function App() {
                   </p>
                 )}
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                >
-                  <Unlock className="h-4 w-4 text-emerald-400" />
-                  <span>Entrar com Conta Google</span>
-                </button>
-              </form>
+                <form onSubmit={handleAdminLoginPassword} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
+                      Senha de Acesso ao Sistema
+                    </label>
+                    <input
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  >
+                    <Unlock className="h-4 w-4" />
+                    <span>Entrar com Senha</span>
+                  </button>
+                </form>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-slate-800"></div>
+                  <span className="flex-shrink-0 mx-4 text-slate-500 text-[10px] font-mono">OU</span>
+                  <div className="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <form onSubmit={handleAdminLoginGoogle}>
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  >
+                    <Unlock className="h-4 w-4 text-emerald-400" />
+                    <span>Entrar com Conta Google</span>
+                  </button>
+                </form>
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -2044,7 +2096,7 @@ export default function App() {
                 </ul>
               </div>
 
-              <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-4">
                 {adminError && (
                   <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-rose-500" />
@@ -2052,14 +2104,44 @@ export default function App() {
                   </p>
                 )}
 
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                >
-                  <Unlock className="h-4 w-4 text-emerald-400" />
-                  <span>Entrar com Conta Google</span>
-                </button>
-              </form>
+                <form onSubmit={handleAdminLoginPassword} className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
+                      Senha de Acesso ao Sistema
+                    </label>
+                    <input
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  >
+                    <Unlock className="h-4 w-4" />
+                    <span>Entrar com Senha</span>
+                  </button>
+                </form>
+
+                <div className="relative flex items-center py-2">
+                  <div className="flex-grow border-t border-slate-800"></div>
+                  <span className="flex-shrink-0 mx-4 text-slate-500 text-[10px] font-mono">OU</span>
+                  <div className="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <form onSubmit={handleAdminLoginGoogle}>
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  >
+                    <Unlock className="h-4 w-4 text-emerald-400" />
+                    <span>Entrar com Conta Google</span>
+                  </button>
+                </form>
+              </div>
             </motion.div>
           ) : (
             <motion.div
