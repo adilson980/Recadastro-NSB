@@ -2249,9 +2249,9 @@ export default function App() {
                           {stats.candidates2026List.length > 0 ? (
                             stats.candidates2026List.map((cand, idx) => (
                               <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/80 transition-colors">
-                                <td className="py-2.5 px-4 font-semibold text-white truncate max-w-[150px]">{cand.nome}</td>
-                                <td className="py-2.5 px-4 text-slate-400 font-mono">{cand.uf}</td>
-                                <td className="py-2.5 px-4 text-emerald-300 truncate max-w-[120px]">{cand.cargo}</td>
+                                <td className="py-2.5 px-4 font-semibold text-white uppercase text-xs leading-snug break-words" style={{ minWidth: '160px' }}>{cand.nome}</td>
+                                <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{cand.uf}</td>
+                                <td className="py-2.5 px-4 text-emerald-300 uppercase text-xs leading-snug break-words">{cand.cargo}</td>
                               </tr>
                             ))
                           ) : (
