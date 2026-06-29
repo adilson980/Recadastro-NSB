@@ -496,10 +496,10 @@ export default function App() {
   // Step validation
   const validateStep = (step: number): boolean => {
     if (step === 1) {
-      return (formData.nomeCompleto || '').trim().length > 3 && sanitizeCPF(formData.cpf || '').length === 11;
+      return (formData.nomeCompleto || '').trim().length >= 3 && sanitizeCPF(formData.cpf || '').length === 11;
     }
     if (step === 2) {
-      return (formData.cidade || '').trim().length > 2 && (formData.estado || '').trim().length === 2 && (formData.telefone || '').trim().length >= 10;
+      return (formData.cidade || '').trim().length >= 2 && (formData.estado || '').trim().length === 2 && (formData.telefone || '').trim().length >= 10;
     }
     return true;
   };
