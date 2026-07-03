@@ -607,10 +607,12 @@ export default function App() {
       const delegadoStr = record.delegado || '';
 
       // 1. Search filter (Name or CPF or City)
+      const searchTerm = filters.search.toLowerCase();
+      const searchCpf = sanitizeCPF(filters.search);
       const matchesSearch = 
-        nome.toLowerCase().includes(filters.search.toLowerCase()) ||
-        sanitizeCPF(cpf).includes(sanitizeCPF(filters.search)) ||
-        cidade.toLowerCase().includes(filters.search.toLowerCase());
+        nome.toLowerCase().includes(searchTerm) ||
+        (searchCpf !== '' && sanitizeCPF(cpf).includes(searchCpf)) ||
+        cidade.toLowerCase().includes(searchTerm);
         
       // 2. State filter
       const matchesEstado = filters.estado === 'Todos' || estado === filters.estado;
@@ -1636,11 +1638,11 @@ export default function App() {
                         <button
                           id="btn-form-next"
                           onClick={handleNextStep}
-                          disabled={!validateStep(currentStep)}
-                          className={`px-5 py-2.5 font-bold rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer ${
+                          type="button"
+                          className={`px-5 py-2.5 font-bold rounded-xl text-xs flex items-center gap-2 transition-all ${
                             validateStep(currentStep)
-                              ? 'bg-emerald-700 hover:bg-emerald-600 text-white shadow-md'
-                              : 'bg-slate-900 text-slate-600 border border-slate-850 cursor-not-allowed'
+                              ? 'bg-emerald-700 hover:bg-emerald-600 text-white shadow-md cursor-pointer'
+                              : 'bg-slate-900 text-slate-600 border border-slate-850 cursor-pointer'
                           }`}
                         >
                           <span>Avançar</span>
