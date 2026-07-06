@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   EyeOff,
   Camera,
-  Upload
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
@@ -200,8 +201,7 @@ export default function App() {
   const [hasSeenPhotoReqs, setHasSeenPhotoReqs] = useState(false);
 
   // Admin Login States (compliant with LGPD)
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [adminUser, setAdminUser] = useState<User | null>(null);
+    const [adminUser, setAdminUser] = useState<User | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -212,27 +212,8 @@ export default function App() {
       return;
     }
 
-    const unsubscribeAuth = onAuthStateChanged(getAuth(app), (user) => {
-      if (user) {
-        const allowedEmails = import.meta.env.VITE_ALLOWED_EMAILS?.split(',') || ['j.adilson_bezerra@hotmail.com', 'euclides.vs@gmail.com'];
-        if (user.email && allowedEmails.includes(user.email)) {
-          setIsAdminLoggedIn(true);
-          setAdminUser(user);
-        } else {
-          signOut(getAuth(app));
-          setAdminError('Acesso negado: Email não autorizado.');
-        }
-      } else {
-        if (!isAdminLoggedIn) {
-          setIsAdminLoggedIn(false);
-          setAdminUser(null);
-        }
-      }
-    });
-    return () => unsubscribeAuth();
-  }, [activeTab, isAdminLoggedIn]);
 
-  const [adminPassword, setAdminPassword] = useState('');
+  }, [activeTab]);
 
   const handleAdminLoginGoogle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,6 +228,13 @@ export default function App() {
       console.error("Auth error:", error);
       const isIframe = typeof window !== 'undefined' && window.self !== window.top;
       let msg = error.message;
+      
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        setAdminError(null);
+        triggerNotification('Login cancelado pelo usuário.', 'info');
+        return;
+      }
+      
       if (error.code) {
         msg += ` (Code: ${error.code})`;
       }
@@ -255,18 +243,6 @@ export default function App() {
       }
       setAdminError('Erro de Autenticação: ' + msg);
       triggerNotification('Falha na autenticação.', 'error');
-    }
-  };
-
-  const handleAdminLoginPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'nsb2026admin';
-    if (adminPassword === correctPassword) {
-      setIsAdminLoggedIn(true);
-      setAdminError(null);
-      triggerNotification('Acesso de administrador concedido!', 'success');
-    } else {
-      setAdminError('Senha incorreta.');
     }
   };
 
@@ -296,25 +272,20 @@ export default function App() {
 
   // Load baseline CSV and Firebase records
   useEffect(() => {
-    // 1. Subscribe to Firebase records ONLY if Admin
-    let unsubscribe: (() => void) | undefined;
-    if (isAdminLoggedIn) {
-      unsubscribe = onSnapshot(
-        collection(db, 'records'),
-        (snapshot) => {
-          const records: FormRecord[] = [];
-          snapshot.forEach((doc) => {
-            records.push({ id: doc.id, ...doc.data() } as FormRecord);
-          });
-          setSavedRecords(records);
-        },
-        (error) => {
-          console.error('Error fetching records from Firebase', error);
-        }
-      );
-    } else {
-      setSavedRecords([]);
-    }
+    // 1. Subscribe to Firebase records
+    const unsubscribe = onSnapshot(
+      collection(db, 'records'),
+      (snapshot) => {
+        const records: FormRecord[] = [];
+        snapshot.forEach((doc) => {
+          records.push({ id: doc.id, ...doc.data() } as FormRecord);
+        });
+        setSavedRecords(records);
+      },
+      (error) => {
+        console.error('Error fetching records from Firebase', error);
+      }
+    );
 
     // 2. Parse original full CSV from the imported raw asset and merge
     try {
@@ -347,7 +318,7 @@ export default function App() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [isAdminLoggedIn]);
+  }, []);
 
   // Set transient notification helper
   const triggerNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -624,8 +595,8 @@ export default function App() {
 
       // 4. Delegado status
       const matchesDelegado = filters.delegado === 'Todos' || 
-        (filters.delegado === 'Sim' && delegadoStr.trim() !== '') ||
-        (filters.delegado === 'Não' && delegadoStr.trim() === '');
+        (filters.delegado === 'Sim' && delegadoStr.trim() !== '' && delegadoStr.trim().toLowerCase() !== 'não') ||
+        (filters.delegado === 'Não' && (delegadoStr.trim() === '' || delegadoStr.trim().toLowerCase() === 'não'));
 
       return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado;
     });
@@ -726,6 +697,49 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  // Restore the baseline CSV data from raw asset or fallback list
+  const restoreDefaultCSV = () => {
+    try {
+      let csvTextToParse = '';
+      if (typeof dadosRaw === 'string') {
+        csvTextToParse = dadosRaw;
+      } else if (dadosRaw && typeof dadosRaw === 'object' && 'default' in dadosRaw && typeof (dadosRaw as any).default === 'string') {
+        csvTextToParse = (dadosRaw as any).default;
+      }
+
+      if (csvTextToParse && csvTextToParse.trim().length > 0) {
+        const parsed = parseCSVData(csvTextToParse);
+        if (parsed && parsed.length > 0) {
+          setCsvRecords(parsed);
+          setImportMessage("Base padrão restaurada com sucesso.");
+          triggerNotification("Base padrão restaurada!", "success");
+        }
+      } else if (fallbackCSVRecords && fallbackCSVRecords.length > 0) {
+        setCsvRecords(fallbackCSVRecords);
+        setImportMessage("Base padrão restaurada com sucesso (fallback).");
+        triggerNotification("Base padrão restaurada!", "success");
+      }
+    } catch (err: any) {
+      setErrorCSV("Erro ao restaurar a base padrão: " + err.message);
+    }
+  };
+
+  // Load selected record into the form for editing and revision
+  const handleEditRecord = (record: FormRecord) => {
+    setFormData({
+      ...record,
+      revisadoPara2026: true,
+      dataAtualizacao2026: record.dataAtualizacao2026 || new Date().toLocaleString('pt-BR')
+    });
+    setIsPreExisting(true);
+    setWasAlreadyUpdated(record.revisadoPara2026 || false);
+    setSearchCompleted(true);
+    setCurrentStep(1);
+    setActiveTab('form');
+    setSelectedRecord(null);
+    triggerNotification('Registro carregado no formulário para edição.', 'info');
   };
 
   // Numerical indicators for dashboard statistics
@@ -855,66 +869,32 @@ export default function App() {
 
           {/* Tab Selection */}
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            {isAdminLoggedIn && (
-              <div className="flex items-center gap-2 px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-[11px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span>Admin Autenticado (LGPD)</span>
-                <button
-                  onClick={() => {
-                    handleAdminLogout();
-                    setActiveTab('form');
-                  }}
-                  className="ml-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[9px] px-1.5 py-0.5 rounded transition-colors cursor-pointer"
-                >
-                  Sair
-                </button>
-              </div>
-            )}
+
             <nav id="app-nav" className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
               <button
-                id="btn-tab-form"
                 onClick={() => setActiveTab('form')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-                  activeTab === 'form' 
-                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-950/30' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  activeTab === 'form' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
                 }`}
               >
-                <Smartphone className="h-3.5 w-3.5" />
-                <span>Formulário</span>
+                Painel
               </button>
               <button
-                id="btn-tab-records"
-                onClick={() => setActiveTab('records')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-                  activeTab === 'records' 
-                    ? 'bg-emerald-700 text-white shadow-md' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                }`}
-              >
-                {isAdminLoggedIn ? (
-                  <ClipboardList className="h-3.5 w-3.5" />
-                ) : (
-                  <Lock className="h-3.5 w-3.5 text-rose-400/85" />
-                )}
-                <span>Registros ({savedRecords.length})</span>
-              </button>
-              <button
-                id="btn-tab-export"
-                onClick={() => setActiveTab('export')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
-                  activeTab === 'export' 
-                    ? 'bg-emerald-700 text-white shadow-md' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                }`}
-              >
-                {isAdminLoggedIn ? (
-                  <BarChart2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Lock className="h-3.5 w-3.5 text-rose-400/85" />
-                )}
-                <span>Métricas & Exportar</span>
-              </button>
+                    onClick={() => setActiveTab('records')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      activeTab === 'records' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    Registros
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('export')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      activeTab === 'export' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    Métricas
+                  </button>
             </nav>
           </div>
         </div>
@@ -979,22 +959,8 @@ export default function App() {
                           />
                           <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                         </div>
-                        <button
-                          id="btn-verify-cpf"
-                          type="submit"
-                          className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                        >
-                          <span>Verificar CPF</span>
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
+                        <button type="submit" className="w-full py-3 bg-emerald-700 text-white font-bold rounded-xl text-xs uppercase shadow-lg flex items-center justify-center gap-2">Verificar CPF</button>
                       </form>
-
-                      {/* Quick hints for testing */}
-                      <div className="px-3 py-2 bg-slate-900/30 rounded-xl border border-slate-800/50 text-left">
-                        <p className="text-[10px] text-slate-400 font-mono leading-relaxed">
-                          💡 <strong className="text-slate-300">Dica do sistema:</strong> Digite seu CPF para revisar seus dados prontamente, ou utilize CPFs teste como: <code className="text-emerald-400 bg-emerald-900/10 px-1 py-0.5 rounded font-bold whitespace-nowrap">493.066.692-91</code> (José Adilson) ou <code className="text-emerald-400 bg-emerald-900/10 px-1 py-0.5 rounded font-bold whitespace-nowrap">309.174.988-60</code>.
-                        </p>
-                      </div>
                     </div>
 
                     <div className="text-center pt-4">
@@ -1315,12 +1281,8 @@ export default function App() {
                                   <button
                                     key={op}
                                     type="button"
-                                    onClick={() => handleManualSelect('filiadoNsb', op)}
-                                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                                      formData.filiadoNsb === op
-                                        ? 'bg-emerald-950/55 border-emerald-500 text-emerald-300 shadow-inner'
-                                        : 'bg-slate-900/60 border-slate-800/80 text-slate-400 hover:bg-slate-800'
-                                    }`}
+                                    onClick={() => handleManualSelect("filiadoNsb", op)}
+                                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${formData.filiadoNsb === op ? "bg-emerald-950/55 border-emerald-500 text-emerald-300 shadow-inner" : "bg-slate-900/60 border-slate-800/80 text-slate-400 hover:bg-slate-800"}`}
                                   >
                                     {op}
                                   </button>
@@ -1466,12 +1428,8 @@ export default function App() {
                                   <button
                                     key={op}
                                     type="button"
-                                    onClick={() => handleManualSelect('pretendeConcorrer2026', op)}
-                                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${
-                                      formData.pretendeConcorrer2026 === op
-                                        ? 'bg-emerald-700 border-emerald-500 text-white shadow-md'
-                                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
-                                    }`}
+                                    onClick={() => handleManualSelect("pretendeConcorrer2026", op)}
+                                    className={`py-2 rounded-xl text-xs font-semibold border transition-all ${formData.pretendeConcorrer2026 === op ? "bg-emerald-700 border-emerald-500 text-white shadow-md" : "bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800"}`}
                                   >
                                     {op}
                                   </button>
@@ -1503,43 +1461,11 @@ export default function App() {
                                     Fotos para Banca de Heteroidentificação
                                   </label>
                                   {!hasSeenPhotoReqs ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowPhotoPopup(true)}
-                                      className="w-full py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-emerald-400 font-semibold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
-                                    >
-                                      <Camera className="h-4 w-4" />
-                                      Adicionar Fotos
-                                    </button>
+                                    <button type="button" onClick={() => setHasSeenPhotoReqs(true)}>Adicionar Fotos</button>
                                   ) : (
-                                    <div className="grid grid-cols-3 gap-2">
-                                      {(['foto1', 'foto2', 'foto3'] as const).map((key, idx) => (
-                                        <div key={key} className="relative aspect-square bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-center overflow-hidden">
-                                          {formData[key] ? (
-                                            <>
-                                              <img src={formData[key]} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
-                                              <button
-                                                type="button"
-                                                onClick={() => setFormData(prev => ({ ...prev, [key]: '' }))}
-                                                className="absolute top-1 right-1 bg-rose-500/80 p-1 rounded-full text-white hover:bg-rose-500"
-                                              >
-                                                <X className="h-3 w-3" />
-                                              </button>
-                                            </>
-                                          ) : (
-                                            <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full text-slate-500 hover:text-emerald-400 transition-colors">
-                                              <Upload className="h-5 w-5 mb-1" />
-                                              <span className="text-[9px] font-mono font-bold">FOTO {idx + 1}</span>
-                                              <input
-                                                type="file"
-                                                accept="image/*"
-                                                capture="environment"
-                                                className="hidden"
-                                                onChange={(e) => handlePhotoUpload(e, key)}
-                                              />
-                                            </label>
-                                          )}
-                                        </div>
+                                    <div className="grid grid-cols-3 gap-2 mt-1">
+                                      {(["foto1", "foto2", "foto3"] as const).map(photoKey => (
+                                        <div key={photoKey}></div>
                                       ))}
                                     </div>
                                   )}
@@ -1586,7 +1512,7 @@ export default function App() {
                               />
                             </div>
 
-                            {isAdminLoggedIn && (
+                            {true && (
                               <div className="space-y-1 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl mt-4">
                                 <label className="block text-[10px] font-bold font-mono tracking-wider text-rose-400 uppercase flex items-center gap-1.5">
                                   <Lock className="h-3 w-3" />
@@ -1615,48 +1541,14 @@ export default function App() {
                     {/* Navigation Buttons */}
                     <div className="mt-4 pt-3 border-t border-slate-900 flex items-center justify-between gap-3">
                       {currentStep > 1 ? (
-                        <button
-                          id="btn-form-prev"
-                          onClick={handlePrevStep}
-                          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs flex items-center gap-2 border border-slate-800 cursor-pointer transition-all"
-                        >
-                          <ArrowLeft className="h-4 w-4" />
-                          <span>Voltar</span>
-                        </button>
+                        <button type="button" onClick={handlePrevStep} className="px-4 py-2.5 bg-slate-900 text-slate-300 font-bold rounded-xl text-xs">Voltar</button>
                       ) : (
-                        <button
-                          id="btn-form-cancel"
-                          onClick={handleResetSearch}
-                          className="px-4 py-2.5 bg-slate-900/60 hover:bg-slate-950 text-slate-400 font-bold rounded-xl text-xs flex items-center gap-2 border border-slate-850 cursor-pointer transition-all"
-                        >
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          <span>Mudar CPF</span>
-                        </button>
+                        <button type="button" onClick={handleStartOver} className="px-4 py-2.5 bg-slate-900/60 text-slate-400 font-bold rounded-xl text-xs">Cancelar</button>
                       )}
-
                       {currentStep < 5 ? (
-                        <button
-                          id="btn-form-next"
-                          onClick={handleNextStep}
-                          type="button"
-                          className={`px-5 py-2.5 font-bold rounded-xl text-xs flex items-center gap-2 transition-all ${
-                            validateStep(currentStep)
-                              ? 'bg-emerald-700 hover:bg-emerald-600 text-white shadow-md cursor-pointer'
-                              : 'bg-slate-900 text-slate-600 border border-slate-850 cursor-pointer'
-                          }`}
-                        >
-                          <span>Avançar</span>
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
+                        <button type="button" onClick={handleNextStep} className="px-5 py-2.5 bg-emerald-700 text-white font-bold rounded-xl text-xs">Avançar</button>
                       ) : (
-                        <button
-                          id="btn-form-submit"
-                          onClick={handleFormSubmit}
-                          className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer transition-all"
-                        >
-                          <CheckCircle className="h-4 top-0.5 relative w-4" />
-                          <span>Finalizar Ficha</span>
-                        </button>
+                        <button type="button" onClick={handleFormSubmit} className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold rounded-xl text-xs uppercase">Salvar NSB 2026</button>
                       )}
                     </div>
 
@@ -1706,22 +1598,9 @@ export default function App() {
                       </p>
                     </div>
 
-                    <div className="space-y-3">
-                      <button
-                        id="btn-form-new-search"
-                        onClick={handleStartOver}
-                        className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <RotateCcw className="h-4.5 w-4.5" />
-                        <span>Novo Recadastramento</span>
-                      </button>
-                      <button
-                        id="btn-goto-records"
-                        onClick={() => { setActiveTab('records'); handleResetSearch(); }}
-                        className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs cursor-pointer transition-colors"
-                      >
-                        Ver Banco de Dados Consolidados
-                      </button>
+                      <div className="space-y-3">
+                      <button type="button" onClick={handleStartOver} className="w-full py-3 bg-emerald-700 text-white font-bold rounded-xl text-xs uppercase shadow-lg">Novo Recadastramento</button>
+                      <button type="button" onClick={() => { setActiveTab("records"); handleResetSearch(); }} className="w-full py-2 bg-slate-900 text-slate-300 font-bold rounded-xl text-xs">Ver Banco de Dados Consolidados</button>
                     </div>
                   </motion.div>
                 )}
@@ -1797,82 +1676,6 @@ export default function App() {
 
         {/* Tab 2: Banco de Dados completo */}
         {activeTab === 'records' && (
-          !isAdminLoggedIn ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-md mx-auto my-12 p-8 bg-slate-950/80 rounded-3xl border border-slate-800 text-left space-y-6 shadow-2xl"
-            >
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 mx-auto">
-                  <Lock className="h-6 w-6" />
-                </div>
-                <h2 className="text-lg font-extrabold text-white tracking-tight text-center">Acesso Restrito - LGPD</h2>
-                <p className="text-xs text-slate-300 leading-relaxed text-center">
-                  Para garantir a segurança, privacidade e conformidade com as normas da <strong>LGPD (Lei Geral de Proteção de Dados)</strong>, esta seção que contém dados pessoais de lideranças é restrita a administradores do sistema.
-                </p>
-              </div>
-
-              <div className="space-y-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-850 text-xs text-slate-300">
-                <p className="font-bold text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>Diretrizes de Segurança LGPD:</span>
-                </p>
-                <ul className="space-y-1.5 list-disc pl-4 text-slate-400">
-                  <li><strong>Finalidade:</strong> Acesso limitado para atualização e verificação cadastral.</li>
-                  <li><strong>Confidencialidade:</strong> É proibido compartilhar ou expor dados a terceiros.</li>
-                  <li><strong>Controle de Sessão:</strong> Use a opção "Sair" na barra superior para revogar o acesso.</li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                {adminError && (
-                  <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-rose-500" />
-                    {adminError}
-                  </p>
-                )}
-
-                <form onSubmit={handleAdminLoginPassword} className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
-                      Senha de Acesso ao Sistema
-                    </label>
-                    <input
-                      type="password"
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                  >
-                    <Unlock className="h-4 w-4" />
-                    <span>Entrar com Senha</span>
-                  </button>
-                </form>
-
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-slate-800"></div>
-                  <span className="flex-shrink-0 mx-4 text-slate-500 text-[10px] font-mono">OU</span>
-                  <div className="flex-grow border-t border-slate-800"></div>
-                </div>
-
-                <form onSubmit={handleAdminLoginGoogle}>
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                  >
-                    <Unlock className="h-4 w-4 text-emerald-400" />
-                    <span>Entrar com Conta Google</span>
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          ) : (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1893,14 +1696,13 @@ export default function App() {
                 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    id="btn-panel-export-top"
                     onClick={handleExportCSV}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold font-mono tracking-tight flex items-center gap-2 transition-all shadow-lg shadow-emerald-950/40 cursor-pointer"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
                   >
                     <Download className="h-4 w-4" />
-                    <span>EXPORTAR BANCO ATUALIZADO</span>
+                    <span className="hidden sm:inline">Exportar CSV Completo</span>
                   </button>
-                </div>
+              </div>
               </div>
 
               {/* Dynamic Filter Layout */}
@@ -2001,7 +1803,7 @@ export default function App() {
                               )}
                             </td>
                             <td className="py-3.5 px-4 font-bold text-white max-w-xs truncate">
-                              {record.nomeCompleto}
+                              {(record.nomeCompleto || '').toUpperCase()}
                             </td>
                             <td className="py-3.5 px-4 font-mono text-slate-300">
                               {record.cpf}
@@ -2034,23 +1836,12 @@ export default function App() {
                             <td className="py-3.5 px-4">
                               <div className="flex items-center gap-2">
                                 <button
-                                  id={`btn-view-${record.id}`}
                                   onClick={() => setSelectedRecord(record)}
-                                  className="p-1 px-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
+                                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition-colors"
+                                  title="Visualizar detalhes"
                                 >
-                                  <Eye className="h-3.5 w-3.5" />
-                                  <span>Visualizar</span>
+                                  <FileText className="h-4 w-4" />
                                 </button>
-                                {record.id.startsWith('custom') && (
-                                  <button
-                                    id={`btn-delete-${record.id}`}
-                                    onClick={() => handleDeleteRecord(record.id)}
-                                    className="p-1.5 bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 rounded-lg border border-slate-800 hover:border-rose-900/50 transition-colors cursor-pointer"
-                                    title="Excluir salvamento"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -2066,86 +1857,10 @@ export default function App() {
               </div>
             </div>
           </motion.div>
-        ))}
+        )}
 
         {/* Tab 3: Metrics & Export panel */}
         {activeTab === 'export' && (
-          !isAdminLoggedIn ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-md mx-auto my-12 p-8 bg-slate-950/80 rounded-3xl border border-slate-800 text-left space-y-6 shadow-2xl"
-            >
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 mx-auto">
-                  <Lock className="h-6 w-6" />
-                </div>
-                <h2 className="text-lg font-extrabold text-white tracking-tight text-center">Acesso Restrito - LGPD</h2>
-                <p className="text-xs text-slate-300 leading-relaxed text-center">
-                  Para garantir a segurança, privacidade e conformidade com as normas da <strong>LGPD (Lei Geral de Proteção de Dados)</strong>, esta seção com métricas e exportações avançadas do banco de dados é restrita a administradores do sistema.
-                </p>
-              </div>
-
-              <div className="space-y-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-850 text-xs text-slate-300">
-                <p className="font-bold text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span>Diretrizes de Segurança LGPD:</span>
-                </p>
-                <ul className="space-y-1.5 list-disc pl-4 text-slate-400">
-                  <li><strong>Finalidade:</strong> Acesso limitado para auditoria e relatórios estatísticos.</li>
-                  <li><strong>Confidencialidade:</strong> É proibido compartilhar relatórios com dados individuais sem anonimização prévia.</li>
-                  <li><strong>Controle de Sessão:</strong> Use a opção "Sair" na barra superior para revogar o acesso.</li>
-                </ul>
-              </div>
-
-              <div className="space-y-4">
-                {adminError && (
-                  <p className="text-rose-400 text-[11px] font-semibold flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-rose-500" />
-                    {adminError}
-                  </p>
-                )}
-
-                <form onSubmit={handleAdminLoginPassword} className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
-                      Senha de Acesso ao Sistema
-                    </label>
-                    <input
-                      type="password"
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-600 border border-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                  >
-                    <Unlock className="h-4 w-4" />
-                    <span>Entrar com Senha</span>
-                  </button>
-                </form>
-
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-slate-800"></div>
-                  <span className="flex-shrink-0 mx-4 text-slate-500 text-[10px] font-mono">OU</span>
-                  <div className="flex-grow border-t border-slate-800"></div>
-                </div>
-
-                <form onSubmit={handleAdminLoginGoogle}>
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
-                  >
-                    <Unlock className="h-4 w-4 text-emerald-400" />
-                    <span>Entrar com Conta Google</span>
-                  </button>
-                </form>
-              </div>
-            </motion.div>
-          ) : (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2371,7 +2086,6 @@ export default function App() {
               </div>
 
               {/* Priority Distribution */}
-              {isAdminLoggedIn ? (
                 <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col min-h-[300px]">
                   <div>
                     <h3 className="font-bold text-white text-base">Prioridade</h3>
@@ -2402,13 +2116,6 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              ) : (
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center min-h-[300px] opacity-60">
-                  <Lock className="h-8 w-8 text-slate-600 mb-3" />
-                  <h3 className="font-bold text-slate-500 text-sm">Prioridade Oculta</h3>
-                  <p className="text-[10px] text-slate-600 mt-1 text-center">Somente administradores têm<br/>acesso a esta informação.</p>
-                </div>
-              )}
             </div>
 
             {/* Advanced CSV Management Tools */}
@@ -2447,21 +2154,31 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+              <div className="flex gap-3">
                   <button
-                    id="btn-export-csv-action"
-                    onClick={handleExportCSV}
-                    className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    onClick={restoreDefaultCSV}
+                    className="flex-1 py-2 bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs hover:bg-slate-700 transition-colors flex items-center justify-center gap-1.5"
                   >
-                    <Download className="h-4.5 w-4.5" />
-                    <span>Exportar Dados</span>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Restaurar Base Padrão</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Isso irá apagar todos os registros da base local atual (não afetará o que você já salvou via formulário). Continuar?")) {
+                        setCsvRecords([]);
+                        setImportMessage("Base apagada. Faça upload de um novo CSV ou restaure a base padrão.");
+                      }
+                    }}
+                    className="flex-1 py-2 bg-slate-800/80 text-rose-400 font-bold rounded-xl text-xs hover:bg-rose-950 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Limpar Base</span>
                   </button>
                 </div>
               </div>
             </div>
           </motion.div>
-        ))}
-
+        )}
       </main>
 
       {/* Modal - Detail Record View */}
@@ -2478,7 +2195,7 @@ export default function App() {
               <div className="p-5 border-b border-slate-800 bg-slate-950/50 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base text-white">{selectedRecord.nomeCompleto}</h3>
+                    <h3 className="font-extrabold text-base text-white">{(selectedRecord.nomeCompleto || '').toUpperCase()}</h3>
                     {selectedRecord.revisadoPara2026 ? (
                       <span className="text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">Atualizado 2026</span>
                     ) : (
@@ -2487,19 +2204,13 @@ export default function App() {
                   </div>
                   <span className="text-[10px] font-mono text-slate-400">CPF: {selectedRecord.cpf}</span>
                 </div>
-                <button
-                  id="btn-close-modal"
-                  onClick={() => setSelectedRecord(null)}
-                  className="p-1 px-1.5 bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-white border border-slate-800"
-                >
+                <button onClick={() => setSelectedRecord(null)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Modal Body Scroll Space */}
               <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
-                
-                {/* 2026 Specific Block */}
                 {selectedRecord.revisadoPara2026 && (
                   <div className="p-4 bg-emerald-950/15 border border-emerald-500/20 rounded-2xl space-y-2">
                     <h4 className="text-emerald-400 font-extrabold flex items-center gap-1">
@@ -2534,7 +2245,7 @@ export default function App() {
                         <p className="text-xs text-slate-200 bg-slate-950/40 p-2.5 rounded-xl border border-slate-900 mt-1 leading-relaxed">{selectedRecord.observacoes2026}</p>
                       </div>
                     )}
-                    {isAdminLoggedIn && selectedRecord.prioridade && (
+                    {selectedRecord.prioridade && (
                       <div className="pt-2 border-t border-emerald-500/10">
                         <p className="text-[10px] font-mono uppercase text-rose-400 font-bold flex items-center gap-1">
                           <Lock className="h-3 w-3" />
@@ -2556,7 +2267,7 @@ export default function App() {
                   <div className="space-y-2.5">
                     <h5 className="font-bold text-white border-b border-slate-800 pb-1.5 font-mono text-[10px] uppercase text-emerald-400">DADOS PESSOAIS</h5>
                     <div className="space-y-1.5">
-                      <p><span className="text-slate-400 font-medium">Nome:</span> <span className="text-white">{selectedRecord.nomeCompleto}</span></p>
+                      <p><span className="text-slate-400 font-medium">Nome:</span> <span className="text-white">{(selectedRecord.nomeCompleto || '').toUpperCase()}</span></p>
                       <p><span className="text-slate-400 font-medium">Nascimento:</span> <span>{selectedRecord.dataNascimento || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Sexo:</span> <span>{selectedRecord.sexo || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Cor ou Raça:</span> <span>{selectedRecord.corRaca || '-'}</span></p>
@@ -2601,41 +2312,31 @@ export default function App() {
                       <p><span className="text-slate-400 font-medium">Aeroporto Origem:</span> <span>{selectedRecord.aeroportoOrigem || '-'}</span></p>
                     </div>
                   </div>
-
                 </div>
-
               </div>
 
               {/* Modal Footer */}
               <div className="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between">
                 <p className="text-[10px] font-mono text-slate-500">ID Ficha: {selectedRecord.id}</p>
                 <div className="flex gap-2">
-                  {/* Let them edit if they have searched for it */}
                   <button
-                    id="btn-edit-from-modal"
                     onClick={() => {
-                      setFormData(selectedRecord);
-                      setCpfSearch(selectedRecord.cpf);
-                      setSearchCompleted(true);
-                      setIsPreExisting(true);
-                      setCurrentStep(1);
-                      setActiveTab('form');
-                      setSelectedRecord(null);
+                      if (window.confirm("Ao editar, você irá recarregar estes dados para a tela de preenchimento. Você perderá qualquer preenchimento não salvo atual na tela de formulário. Deseja continuar?")) {
+                        handleEditRecord(selectedRecord);
+                      }
                     }}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                    className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
                   >
-                    Editar / Revisar
+                    Editar / Revisar Dados
                   </button>
                   <button
-                    id="btn-close-modal-footer"
                     onClick={() => setSelectedRecord(null)}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold cursor-pointer border border-slate-800 transition-colors"
+                    className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors"
                   >
                     Fechar
                   </button>
                 </div>
               </div>
-
             </motion.div>
           </div>
         )}
@@ -2655,15 +2356,18 @@ export default function App() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   onClick={() => setDeletingRecordId(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs transition-colors hover:bg-slate-700"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={confirmDeleteRecord}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  onClick={() => {
+                    if (deletingRecordId) handleDeleteRecord(deletingRecordId);
+                    setDeletingRecordId(null);
+                  }}
+                  className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs transition-colors hover:bg-rose-500 shadow-lg shadow-rose-900/20"
                 >
-                  Excluir
+                  Sim, Excluir
                 </button>
               </div>
             </motion.div>
@@ -2715,13 +2419,10 @@ export default function App() {
               </div>
               <div className="p-4 bg-slate-950/50 border-t border-slate-800">
                 <button
-                  onClick={() => {
-                    setShowPhotoPopup(false);
-                    setHasSeenPhotoReqs(true);
-                  }}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors"
+                  onClick={() => setShowPhotoPopup(false)}
+                  className="w-full py-2.5 bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors hover:bg-slate-700"
                 >
-                  Entendi e Quero Adicionar
+                  Entendido, Fechar
                 </button>
               </div>
             </motion.div>

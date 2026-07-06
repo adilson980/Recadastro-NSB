@@ -2,14 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /records/{cpf} {
-      // Any user can fetch their specific record if they know the exact CPF
-      allow get: if true;
-      
-      // Any user can create or update a record
-      allow create, update: if true;
-      
-      // Only the specific admin email can list all records or delete records
-      allow list, delete: if request.auth != null && (request.auth.token.email == 'j.adilson_bezerra@hotmail.com' || request.auth.token.email == 'euclides.vs@gmail.com');
+      // Allow any user to read and write records
+      allow read, write: if true;
     }
   }
 }
