@@ -744,24 +744,36 @@ export default function App() {
 
   // Numerical indicators for dashboard statistics
   const stats = useMemo(() => {
+    // Combine saved records and non-duplicate original (unrevised) records so stats represent the unified database
+    const combined: FormRecord[] = [...savedRecords];
+    csvRecords.forEach(csvRec => {
+      const isAlreadyInSaved = savedRecords.some(s => sanitizeCPF(s.cpf) === sanitizeCPF(csvRec.cpf));
+      if (!isAlreadyInSaved) {
+        combined.push({
+          ...csvRec,
+          revisadoPara2026: false
+        });
+      }
+    });
+
     const totalLocalUpdates = savedRecords.length;
-    const totalRepresented = csvRecords.length + savedRecords.filter(r => !csvRecords.some(c => sanitizeCPF(c.cpf) === sanitizeCPF(r.cpf))).length;
-    const nsbMembers = savedRecords.filter(r => r.filiadoNsb?.toLowerCase() === 'sim').length;
+    const totalRepresented = combined.length;
+    const nsbMembers = combined.filter(r => r.filiadoNsb?.toLowerCase() === 'sim').length;
     
     // States distribution
     const statesMap: { [key: string]: number } = {};
-    savedRecords.forEach(r => {
+    combined.forEach(r => {
       if (r.estado) statesMap[r.estado] = (statesMap[r.estado] || 0) + 1;
     });
     
     // Candidacy goals for 2026
     const candidate2026Intents = {
-      sim: savedRecords.filter(r => r.pretendeConcorrer2026 === 'Sim').length,
-      estudo: savedRecords.filter(r => r.pretendeConcorrer2026 === 'Em estudo').length,
-      nao: savedRecords.filter(r => r.pretendeConcorrer2026 === 'Não').length,
+      sim: combined.filter(r => r.pretendeConcorrer2026 === 'Sim').length,
+      estudo: combined.filter(r => r.pretendeConcorrer2026 === 'Em estudo').length,
+      nao: combined.filter(r => r.pretendeConcorrer2026 === 'Não').length,
     };
 
-    const candidates2026List = savedRecords
+    const candidates2026List = combined
       .filter(r => r.pretendeConcorrer2026 === 'Sim')
       .map(r => ({
         nome: (r.nomeCompleto || '').split(' ').slice(0, 2).join(' '),
@@ -784,7 +796,7 @@ export default function App() {
     const priorityMap: Record<string, number> = {};
     const priorityList: Array<{nome: string, uf: string, cor: string, prioridade: string}> = [];
 
-    savedRecords.forEach(r => {
+    combined.forEach(r => {
       const g = r.sexo || 'Não especificada';
       const c = r.corRaca || 'Não especificada';
       const p = r.prioridade || 'Sem prioridade';
