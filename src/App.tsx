@@ -2025,22 +2025,33 @@ export default function App() {
               </div>
 
               {/* State Distribution */}
-              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 min-h-[450px] shadow-xl">
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col lg:col-span-2 shadow-xl">
                 <div>
                   <h3 className="font-bold text-white text-base">Distribuição por Estado</h3>
                   <p className="text-xs text-slate-400">Quantidade de lideranças registradas por UF.</p>
                 </div>
-                <div className="h-[350px] w-full mt-6 relative">
+                <div 
+                  className="w-full mt-6 relative"
+                  style={{ height: `${Math.max(350, stats.statesChartData.length * 28)}px` }}
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }} width={50} />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }} 
+                        width={50} 
+                        interval={0}
+                      />
                       <Tooltip 
                         cursor={{ fill: '#1e293b' }}
                         contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
                         itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
                       />
-                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24}>
+                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={18}>
                         <LabelList dataKey="count" position="right" fill="#cbd5e1" fontSize={13} fontWeight="bold" />
                         {stats.statesChartData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
