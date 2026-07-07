@@ -698,11 +698,12 @@ export default function App() {
 
   // Export filtered/selected candidates to a native Excel .xlsx file
   const handleExportXLSX = () => {
-    // Only with NOME COMPLETO, CPF, TELEFONE, PRETENSÃO DE CANDIDATURA EM 2026, CARGO A DISPUTAR EM 2026 (all in UPPERCASE)
+    // Only with NOME COMPLETO, CPF, TELEFONE, UF, PRETENSÃO DE CANDIDATURA EM 2026, CARGO A DISPUTAR EM 2026 (all in UPPERCASE)
     const dataToExport = filteredList.map(r => ({
       'NOME COMPLETO': (r.nomeCompleto || '').trim().toUpperCase(),
       'CPF': (r.cpf || '').trim().toUpperCase(),
       'TELEFONE': (r.telefone || '').trim().toUpperCase(),
+      'UF': (r.estado || '').trim().toUpperCase(),
       'PRETENSÃO DE CANDIDATURA EM 2026': (r.pretendeConcorrer2026 || 'Em estudo').trim().toUpperCase(),
       'CARGO A DISPUTAR EM 2026': (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').trim().toUpperCase()
     }));
@@ -718,13 +719,14 @@ export default function App() {
       XLSX.utils.book_append_sheet(workbook, worksheet, 'CANDIDATOS_2026');
 
       // Auto-fit column widths
-      const maxLens = [25, 15, 15, 35, 25];
+      const maxLens = [25, 15, 15, 10, 35, 25];
       dataToExport.forEach(row => {
         maxLens[0] = Math.max(maxLens[0], row['NOME COMPLETO'].length);
         maxLens[1] = Math.max(maxLens[1], row['CPF'].length);
         maxLens[2] = Math.max(maxLens[2], row['TELEFONE'].length);
-        maxLens[3] = Math.max(maxLens[3], row['PRETENSÃO DE CANDIDATURA EM 2026'].length);
-        maxLens[4] = Math.max(maxLens[4], row['CARGO A DISPUTAR EM 2026'].length);
+        maxLens[3] = Math.max(maxLens[3], row['UF'].length);
+        maxLens[4] = Math.max(maxLens[4], row['PRETENSÃO DE CANDIDATURA EM 2026'].length);
+        maxLens[5] = Math.max(maxLens[5], row['CARGO A DISPUTAR EM 2026'].length);
       });
       worksheet['!cols'] = maxLens.map(w => ({ wch: w + 2 }));
 
