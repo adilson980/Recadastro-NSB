@@ -1,8 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /records/{cpf} {
-      // Allow any user to read and write records
+    match /{document=**} {
       allow read, write: if true;
     }
   }

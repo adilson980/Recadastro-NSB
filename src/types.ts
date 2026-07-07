@@ -51,4 +51,5 @@ export interface FilterOptions {
   estado: string;
   filiado: string;
   delegado: string;
+  pretendeConcorrer2026: string;
 }

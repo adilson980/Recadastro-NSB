@@ -29,7 +29,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
 import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
@@ -161,23 +161,36 @@ const SafeResponsiveContainer: React.FC<SafeResponsiveContainerProps> = ({ child
     const resizeObserver = new ResizeObserver((entries) => {
       if (!entries || entries.length === 0) return;
       const { width, height } = entries[0].contentRect;
-      setDimensions({ width, height });
+      
+      const observedWidth = width || (containerRef.current ? containerRef.current.clientWidth : 0);
+      const observedHeight = height || (containerRef.current ? containerRef.current.clientHeight : 0);
+
+      setDimensions({
+        width: observedWidth > 50 ? observedWidth : 300,
+        height: observedHeight > 50 ? observedHeight : 220
+      });
     });
 
     resizeObserver.observe(containerRef.current);
     
     // Set initial size
     const rect = containerRef.current.getBoundingClientRect();
-    setDimensions({ width: rect.width || 300, height: rect.height || 220 });
+    setDimensions({
+      width: rect.width > 50 ? rect.width : 300,
+      height: rect.height > 50 ? rect.height : 220
+    });
 
     return () => {
       resizeObserver.disconnect();
     };
   }, []);
 
+  const finalWidth = dimensions.width > 50 ? dimensions.width : 300;
+  const finalHeight = dimensions.height > 50 ? dimensions.height : 220;
+
   return (
-    <div ref={containerRef} className="w-full h-full min-h-[220px]">
-      {dimensions.width > 0 && dimensions.height > 0 && children(dimensions.width, dimensions.height)}
+    <div ref={containerRef} className="w-full h-full min-h-[220px]" style={{ minHeight: '220px' }}>
+      {children(finalWidth, finalHeight)}
     </div>
   );
 };
@@ -260,7 +273,8 @@ export default function App() {
     search: '',
     estado: 'Todos',
     filiado: 'Todos',
-    delegado: 'Todos'
+    delegado: 'Todos',
+    pretendeConcorrer2026: 'Todos'
   });
 
   // Admin and UI state
@@ -598,7 +612,13 @@ export default function App() {
         (filters.delegado === 'Sim' && delegadoStr.trim() !== '' && delegadoStr.trim().toLowerCase() !== 'não') ||
         (filters.delegado === 'Não' && (delegadoStr.trim() === '' || delegadoStr.trim().toLowerCase() === 'não'));
 
-      return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado;
+      // 5. Candidate 2026 filter (Sim / Em estudo)
+      const pretende = (record.pretendeConcorrer2026 || 'Em estudo').toLowerCase();
+      const matchesPretende = filters.pretendeConcorrer2026 === 'Todos' ||
+        (filters.pretendeConcorrer2026 === 'Sim' && pretende === 'sim') ||
+        (filters.pretendeConcorrer2026 === 'Em estudo' && pretende === 'em estudo');
+
+      return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado && matchesPretende;
     });
   }, [savedRecords, csvRecords, filters]);
 
@@ -1718,7 +1738,7 @@ export default function App() {
               </div>
 
               {/* Dynamic Filter Layout */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-850">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-850">
                 
                 {/* Search Term */}
                 <div className="relative">
@@ -1764,6 +1784,17 @@ export default function App() {
                   <option value="Todos">Status Delegado (Todos)</option>
                   <option value="Sim">Apenas Delegados</option>
                   <option value="Não">Não Delegados</option>
+                </select>
+
+                {/* Candidatura 2026 filter */}
+                <select
+                  value={filters.pretendeConcorrer2026}
+                  onChange={(e) => setFilters(prev => ({ ...prev, pretendeConcorrer2026: e.target.value }))}
+                  className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Todos">Candidatura 2026 (Todos)</option>
+                  <option value="Sim">Apenas Sim</option>
+                  <option value="Em estudo">Apenas Em Estudo</option>
                 </select>
 
               </div>
@@ -1928,32 +1959,30 @@ export default function App() {
                 <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
                   {/* Left: Chart */}
                   <div className="flex flex-col justify-between h-full">
-                    <div className="flex-1 relative min-h-[250px]">
-                      <SafeResponsiveContainer>
-                        {(width, height) => (
-                          <PieChart width={width} height={height}>
-                            <Pie
-                              data={stats.intentionsChartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={60}
-                              outerRadius={85}
-                              paddingAngle={5}
-                              dataKey="value"
-                              label={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }}
-                            >
-                              {stats.intentionsChartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
-                              itemStyle={{ color: '#f8fafc' }}
-                            />
-                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '13px', color: '#94a3b8', paddingTop: '10px' }} />
-                          </PieChart>
-                        )}
-                      </SafeResponsiveContainer>
+                    <div className="h-[250px] w-full relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.intentionsChartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={85}
+                            paddingAngle={5}
+                            dataKey="value"
+                            label={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }}
+                          >
+                            {stats.intentionsChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.name === 'Sim' ? '#10b981' : entry.name === 'Em Estudo' ? '#eab308' : '#334155'} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                            itemStyle={{ color: '#f8fafc' }}
+                          />
+                          <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '13px', color: '#94a3b8', paddingTop: '10px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                     <div className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 text-[11px] text-slate-400 mt-4 shadow-inner">
                       <p>⚠️ Baseada em <strong className="text-white">{stats.totalLocalUpdates}</strong> registros atualizados localmente.</p>
@@ -2001,26 +2030,24 @@ export default function App() {
                   <h3 className="font-bold text-white text-base">Distribuição por Estado</h3>
                   <p className="text-xs text-slate-400">Quantidade de lideranças registradas por UF.</p>
                 </div>
-                <div className="flex-1 mt-6 relative w-full h-full min-h-[350px]">
-                  <SafeResponsiveContainer>
-                    {(width, height) => (
-                      <BarChart width={width} height={height} data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }} width={50} />
-                        <Tooltip 
-                          cursor={{ fill: '#1e293b' }}
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
-                          itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
-                        />
-                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24}>
-                          <LabelList dataKey="count" position="right" fill="#cbd5e1" fontSize={13} fontWeight="bold" />
-                          {stats.statesChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    )}
-                  </SafeResponsiveContainer>
+                <div className="h-[350px] w-full mt-6 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.statesChartData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }} width={50} />
+                      <Tooltip 
+                        cursor={{ fill: '#1e293b' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                        itemStyle={{ color: '#10b981', fontWeight: 'bold' }}
+                      />
+                      <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} barSize={24}>
+                        <LabelList dataKey="count" position="right" fill="#cbd5e1" fontSize={13} fontWeight="bold" />
+                        {stats.statesChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#059669'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
@@ -2032,32 +2059,30 @@ export default function App() {
                   <h3 className="font-bold text-white text-base">Gênero</h3>
                   <p className="text-xs text-slate-400">Distribuição por sexo / gênero.</p>
                 </div>
-                <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <SafeResponsiveContainer>
-                    {(width, height) => (
-                      <PieChart width={width} height={height}>
-                        <Pie
-                          data={stats.genderChartData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={45}
-                          outerRadius={65}
-                          paddingAngle={5}
-                          dataKey="value"
-                          label={{ fill: '#94a3b8', fontSize: 12 }}
-                        >
-                          {stats.genderChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
-                          itemStyle={{ color: '#f8fafc' }}
-                        />
-                        <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
-                      </PieChart>
-                    )}
-                  </SafeResponsiveContainer>
+                <div className="h-[220px] w-full mt-6 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats.genderChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={5}
+                        dataKey="value"
+                        label={{ fill: '#94a3b8', fontSize: 12 }}
+                      >
+                        {stats.genderChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#8b5cf6', '#06b6d4', '#f43f5e', '#10b981'][index % 4]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px' }}
+                        itemStyle={{ color: '#f8fafc' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '12px', color: '#94a3b8' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -2067,33 +2092,31 @@ export default function App() {
                   <h3 className="font-bold text-white text-base">Cor / Raça</h3>
                   <p className="text-xs text-slate-400">Distribuição racial declarada.</p>
                 </div>
-                <div className="flex-1 mt-6 relative min-h-[220px]">
-                  <SafeResponsiveContainer>
-                    {(width, height) => (
-                      <BarChart width={width} height={height} data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={80} />
-                        <Tooltip 
-                          cursor={{ fill: '#1e293b' }}
-                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
-                          itemStyle={{ color: '#f59e0b' }}
-                        />
-                        <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                          <LabelList dataKey="value" position="right" fill="#94a3b8" fontSize={12} />
-                          {stats.colorChartData.map((entry, index) => {
-                            const colorMap: Record<string, string> = {
-                              'Branca': '#f8fafc',
-                              'Preta': '#334155',
-                              'Parda': '#b45309',
-                              'Amarela': '#fde047',
-                              'Indígena': '#ef4444'
-                            };
-                            return <Cell key={`cell-${index}`} fill={colorMap[entry.name] || '#64748b'} />;
-                          })}
-                        </Bar>
-                      </BarChart>
-                    )}
-                  </SafeResponsiveContainer>
+                <div className="h-[220px] w-full mt-6 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.colorChartData} layout="vertical" margin={{ top: 0, right: 50, left: 0, bottom: 0 }}>
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} width={80} />
+                      <Tooltip 
+                        cursor={{ fill: '#1e293b' }}
+                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', fontSize: '12px', color: '#f8fafc' }}
+                        itemStyle={{ color: '#f59e0b' }}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                        <LabelList dataKey="value" position="right" fill="#94a3b8" fontSize={12} />
+                        {stats.colorChartData.map((entry, index) => {
+                          const colorMap: Record<string, string> = {
+                            'Branca': '#f8fafc',
+                            'Preta': '#334155',
+                            'Parda': '#b45309',
+                            'Amarela': '#fde047',
+                            'Indígena': '#ef4444'
+                          };
+                          return <Cell key={`cell-${index}`} fill={colorMap[entry.name] || '#64748b'} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
@@ -2332,11 +2355,7 @@ export default function App() {
                 <p className="text-[10px] font-mono text-slate-500">ID Ficha: {selectedRecord.id}</p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      if (window.confirm("Ao editar, você irá recarregar estes dados para a tela de preenchimento. Você perderá qualquer preenchimento não salvo atual na tela de formulário. Deseja continuar?")) {
-                        handleEditRecord(selectedRecord);
-                      }
-                    }}
+                    onClick={() => handleEditRecord(selectedRecord)}
                     className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
                   >
                     Editar / Revisar Dados
