@@ -38,6 +38,7 @@ import dadosRaw from './dados.csv?raw';
 import { db, app } from './lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import * as XLSX from 'xlsx';
 
 // Safe LocalStorage wrapper to prevent sandbox SecurityError in iframes
 const safeLocalStorage = {
@@ -693,6 +694,46 @@ export default function App() {
     link.click();
     document.body.removeChild(link);
     triggerNotification('Base de dados exportada com sucesso!', 'success');
+  };
+
+  // Export filtered/selected candidates to a native Excel .xlsx file
+  const handleExportXLSX = () => {
+    // Only with NOME COMPLETO, CPF, TELEFONE, PRETENSÃO DE CANDIDATURA EM 2026, CARGO A DISPUTAR EM 2026 (all in UPPERCASE)
+    const dataToExport = filteredList.map(r => ({
+      'NOME COMPLETO': (r.nomeCompleto || '').trim().toUpperCase(),
+      'CPF': (r.cpf || '').trim().toUpperCase(),
+      'TELEFONE': (r.telefone || '').trim().toUpperCase(),
+      'PRETENSÃO DE CANDIDATURA EM 2026': (r.pretendeConcorrer2026 || 'Em estudo').trim().toUpperCase(),
+      'CARGO A DISPUTAR EM 2026': (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').trim().toUpperCase()
+    }));
+
+    if (dataToExport.length === 0) {
+      triggerNotification('Nenhum registro encontrado para exportar com os filtros atuais.', 'info');
+      return;
+    }
+
+    try {
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'CANDIDATOS_2026');
+
+      // Auto-fit column widths
+      const maxLens = [25, 15, 15, 35, 25];
+      dataToExport.forEach(row => {
+        maxLens[0] = Math.max(maxLens[0], row['NOME COMPLETO'].length);
+        maxLens[1] = Math.max(maxLens[1], row['CPF'].length);
+        maxLens[2] = Math.max(maxLens[2], row['TELEFONE'].length);
+        maxLens[3] = Math.max(maxLens[3], row['PRETENSÃO DE CANDIDATURA EM 2026'].length);
+        maxLens[4] = Math.max(maxLens[4], row['CARGO A DISPUTAR EM 2026'].length);
+      });
+      worksheet['!cols'] = maxLens.map(w => ({ wch: w + 2 }));
+
+      XLSX.writeFile(workbook, 'nsb_candidatos_filtrados_2026.xlsx');
+      triggerNotification('Planilha Excel (.xlsx) exportada com sucesso!', 'success');
+    } catch (err) {
+      console.error('Erro ao exportar planilha Excel:', err);
+      triggerNotification('Erro ao gerar arquivo Excel.', 'error');
+    }
   };
 
   // Admin CSV import fallback lookup handler
@@ -1726,15 +1767,22 @@ export default function App() {
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
                     onClick={handleExportCSV}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
+                    className="px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors border border-slate-750 shadow-md"
                   >
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Exportar CSV Completo</span>
                   </button>
-              </div>
+                  <button
+                    onClick={handleExportXLSX}
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
+                  >
+                    <Sparkles className="h-4 w-4 text-emerald-300" />
+                    <span>Exportar Candidatos (.xlsx)</span>
+                  </button>
+                </div>
               </div>
 
               {/* Dynamic Filter Layout */}
