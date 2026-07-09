@@ -1,0 +1,158 @@
+import React from 'react';
+import { FormRecord } from './types';
+
+export const FichaA4 = ({ selectedRecord }: { selectedRecord: FormRecord }) => {
+  return (
+    <div className="mx-auto bg-white text-black h-full relative print-no-padding" style={{ 
+      width: '210mm', 
+      minHeight: '297mm',
+      paddingTop: '2.5cm',
+      paddingRight: '2.0cm',
+      paddingBottom: '2.0cm',
+      paddingLeft: '2.5cm'
+    }}>
+             {/* Header */}
+             <div className="flex justify-between items-center border-b-4 border-[#000000] pb-4 mb-8">
+                <div className="flex flex-col flex-1">
+                  <h1 className="text-3xl font-black uppercase tracking-wider mb-2">Negritude Socialista Brasileira</h1>
+                  <h2 className="text-xl font-bold uppercase tracking-widest text-[#374151]">Registro Individual de Filiado</h2>
+                </div>
+                {selectedRecord.foto1 && (
+                  <div className="ml-4 flex-shrink-0">
+                    <img src={selectedRecord.foto1} alt="Foto do Filiado" className="w-24 h-32 object-cover border border-[#d1d5db]" referrerPolicy="no-referrer" />
+                  </div>
+                )}
+             </div>
+             
+             {/* Fields Grid */}
+             <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                <div className="col-span-2 grid grid-cols-3 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div className="col-span-2">
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Nome Completo</span>
+                    <span className="font-bold text-xl uppercase">{selectedRecord.nomeCompleto || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Data de Inscrição no Cadastro</span>
+                    <span className="font-semibold text-lg">{selectedRecord.timestamp ? selectedRecord.timestamp.split(',')[0] : '-'}</span>
+                  </div>
+                </div>
+                
+                <div className="border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">CPF</span>
+                  <span className="font-semibold text-lg">{selectedRecord.cpf || '-'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Data de Nascimento</span>
+                    <span className="font-semibold text-lg">{selectedRecord.dataNascimento || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Sexo</span>
+                    <span className="font-semibold text-lg">{selectedRecord.sexo || '-'}</span>
+                  </div>
+                </div>
+
+                <div className="border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Telefone</span>
+                  <span className="font-semibold text-lg">{selectedRecord.telefone || '-'}</span>
+                </div>
+                <div className="border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">E-mail</span>
+                  <span className="font-semibold text-lg">{selectedRecord.email || '-'}</span>
+                </div>
+
+                <div className="col-span-2 border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Endereço</span>
+                  <span className="font-semibold text-lg uppercase">{selectedRecord.endereco || '-'}</span>
+                </div>
+
+                <div className="border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">CEP</span>
+                  <span className="font-semibold text-lg">{selectedRecord.cep || '-'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Cidade</span>
+                    <span className="font-semibold text-lg uppercase">{selectedRecord.cidade || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">UF</span>
+                    <span className="font-semibold text-lg uppercase">{selectedRecord.estado || '-'}</span>
+                  </div>
+                </div>
+
+                <div className="col-span-2 mt-6">
+                  <h3 className="font-black text-lg uppercase border-b-2 border-[#000000] pb-1 mb-4">Dados Eleitorais e Bancários</h3>
+                </div>
+
+                <div className="col-span-2 grid grid-cols-3 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Título Eleitoral</span>
+                    <span className="font-semibold text-lg">{selectedRecord.tituloEleitoral || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Zona Eleitoral</span>
+                    <span className="font-semibold text-lg">{selectedRecord.zona || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Seção</span>
+                    <span className="font-semibold text-lg">{selectedRecord.secao || '-'}</span>
+                  </div>
+                </div>
+
+                <div className="border-b-2 border-[#d1d5db] pb-1">
+                  <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Cargo Disputado</span>
+                  <span className="font-semibold text-lg uppercase">{selectedRecord.cargoPretendido2026 && selectedRecord.cargoPretendido2026 !== 'N/A' && selectedRecord.cargoPretendido2026 !== 'Não especificado' ? selectedRecord.cargoPretendido2026 : (selectedRecord.cargoDisputado || '-')}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">CNPJ (Candidatura)</span>
+                    <span className="font-semibold text-lg">{selectedRecord.cnpjCandidatura || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Prioridade</span>
+                    <span className="font-semibold text-lg uppercase">{selectedRecord.prioridade || '-'}</span>
+                  </div>
+                </div>
+
+                <div className="col-span-2 grid grid-cols-3 gap-4 border-b-2 border-[#d1d5db] pb-1">
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Banco</span>
+                    <span className="font-semibold text-lg uppercase">{selectedRecord.bancoConta1 || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Agência</span>
+                    <span className="font-semibold text-lg">{selectedRecord.agenciaConta1 || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Número da Conta</span>
+                    <span className="font-semibold text-lg">{selectedRecord.numeroConta1 || '-'}</span>
+                  </div>
+                </div>
+                
+                {selectedRecord.bancoConta2 && (
+                  <div className="col-span-2 grid grid-cols-3 gap-4 border-b-2 border-[#d1d5db] pb-1 mt-4">
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Banco (Conta 2)</span>
+                      <span className="font-semibold text-lg uppercase">{selectedRecord.bancoConta2 || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Agência (Conta 2)</span>
+                      <span className="font-semibold text-lg">{selectedRecord.agenciaConta2 || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-[#6b7280] block mb-1">Número da Conta 2</span>
+                      <span className="font-semibold text-lg">{selectedRecord.numeroConta2 || '-'}</span>
+                    </div>
+                  </div>
+                )}
+             </div>
+
+             <div className="mt-16 pt-8 flex justify-center">
+                <div className="w-1/2 border-t-2 border-[#000000] text-center pt-2">
+                   <span className="font-bold uppercase text-sm">Assinatura do Filiado</span>
+                </div>
+             </div>
+    </div>
+  );
+};

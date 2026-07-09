@@ -26,7 +26,8 @@ import {
   EyeOff,
   Camera,
   Upload,
-  RefreshCw
+  RefreshCw,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
@@ -39,6 +40,10 @@ import { db, app } from './lib/firebase';
 import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import * as XLSX from 'xlsx';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
+import { FichaA4 } from './FichaA4';
 
 // Safe LocalStorage wrapper to prevent sandbox SecurityError in iframes
 const safeLocalStorage = {
@@ -146,6 +151,16 @@ const INITIAL_RECORD_STATE = (cpfValue = ''): Omit<FormRecord, 'id'> => ({
   foto2: '',
   foto3: '',
   prioridade: '',
+  candidaturaHomologada: '',
+  cnpjCandidatura: '',
+  nomeUrna: '',
+  numeroUrna: '',
+  bancoConta1: '',
+  agenciaConta1: '',
+  numeroConta1: '',
+  bancoConta2: '',
+  agenciaConta2: '',
+  numeroConta2: '',
 });
 
 interface SafeResponsiveContainerProps {
@@ -280,6 +295,7 @@ export default function App() {
 
   // Admin and UI state
   const [selectedRecord, setSelectedRecord] = useState<FormRecord | null>(null);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null);
   const [errorCSV, setErrorCSV] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
@@ -738,6 +754,65 @@ export default function App() {
     }
   };
 
+  const handlePrintAndPDF = async () => {
+    if (!selectedRecord) return;
+    
+    // Mostramos a notificação primeiro
+    triggerNotification('Gerando arquivo PDF da ficha...', 'info');
+    
+    setTimeout(async () => {
+      const printElement = document.getElementById('printable-area');
+      if (printElement) {
+        const originalDisplay = printElement.style.display;
+        
+        // Remove 'hidden' para o html2canvas renderizar corretamente
+        printElement.classList.remove('hidden');
+        printElement.style.display = 'block';
+
+        try {
+          // 1. Gera o PDF usando html2canvas e jspdf
+          const canvas = await html2canvas(printElement, { 
+            scale: 2, // Maior qualidade
+            useCORS: true,
+            logging: false 
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+          });
+          
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          
+          // Nome do arquivo PDF
+          const safeName = (selectedRecord.nomeCompleto || 'Filiado').replace(/\s+/g, '_');
+          pdf.save(`Ficha_NSB_${safeName}.pdf`);
+          
+          triggerNotification('PDF gerado com sucesso! Abrindo modo de impressão...', 'success');
+        } catch (error) {
+          console.error('Error generating PDF:', error);
+          triggerNotification('Erro ao gerar PDF. Imprimindo apenas...', 'error');
+        } finally {
+          // Restaura a visualização da tela de impressão
+          printElement.classList.add('hidden');
+          printElement.style.display = originalDisplay;
+          
+          // 2. Aciona o diálogo de impressão do navegador na mesma interface original
+          setTimeout(() => {
+            window.print();
+          }, 500);
+        }
+      } else {
+        window.print();
+      }
+    }, 100);
+  };
+
   // Admin CSV import fallback lookup handler
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -904,7 +979,8 @@ export default function App() {
   }, [savedRecords, csvRecords]);
 
   return (
-    <div id="app-container" className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col antialiased">
+    <>
+      <div id="app-container" className="min-h-screen bg-slate-900 text-slate-100 font-sans flex flex-col antialiased print:hidden">
       
       {/* Dynamic Pop-up Notification Banner */}
       <AnimatePresence>
@@ -1531,7 +1607,139 @@ export default function App() {
                                   </select>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-1 mt-4 border-t border-slate-800 pt-4">
+                                  <label className="block text-[10px] font-bold font-mono tracking-wider text-amber-400 uppercase">Sua Candidatura foi homologada?</label>
+                                  <div className="grid grid-cols-2 gap-2 mt-1">
+                                    {['Sim', 'Não'].map(op => (
+                                      <button
+                                        key={op}
+                                        type="button"
+                                        onClick={() => handleManualSelect("candidaturaHomologada", op)}
+                                        className={`py-2 rounded-xl text-xs font-semibold border transition-all ${formData.candidaturaHomologada === op ? "bg-amber-600 border-amber-500 text-white shadow-md" : "bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800"}`}
+                                      >
+                                        {op}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {formData.candidaturaHomologada === 'Sim' && (
+                                  <div className="p-4 bg-slate-900 border border-amber-500/30 rounded-2xl space-y-4 animate-fadeIn relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                                      <Sparkles className="h-16 w-16 text-amber-400" />
+                                    </div>
+                                    <h4 className="text-sm font-bold text-amber-400">Dados da Candidatura Homologada</h4>
+                                    
+                                    <div className="space-y-1 relative z-10">
+                                      <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Nome para Urna</label>
+                                      <input
+                                        type="text"
+                                        name="nomeUrna"
+                                        placeholder="Ex: João da Silva"
+                                        value={formData.nomeUrna || ''}
+                                        onChange={handleChange}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1 relative z-10">
+                                      <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">Número para Urna</label>
+                                      <input
+                                        type="text"
+                                        name="numeroUrna"
+                                        placeholder="Ex: 40000"
+                                        value={formData.numeroUrna || ''}
+                                        onChange={handleChange}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-1 relative z-10">
+                                      <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">CNPJ da Candidatura</label>
+                                      <input
+                                        type="text"
+                                        name="cnpjCandidatura"
+                                        placeholder="00.000.000/0000-00"
+                                        value={formData.cnpjCandidatura || ''}
+                                        onChange={handleChange}
+                                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                                      />
+                                    </div>
+                                    
+                                    <div className="space-y-3 pt-3 mt-3 border-t border-amber-500/20 relative z-10">
+                                      <label className="block text-[10px] font-bold font-mono tracking-wider text-amber-400/80 uppercase">Conta Bancária 1 (Opcional)</label>
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input
+                                          type="text"
+                                          name="bancoConta1"
+                                          placeholder="Banco"
+                                          value={formData.bancoConta1 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                        <input
+                                          type="text"
+                                          name="agenciaConta1"
+                                          placeholder="Agência"
+                                          value={formData.agenciaConta1 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                        <input
+                                          type="text"
+                                          name="numeroConta1"
+                                          placeholder="Número da Conta"
+                                          value={formData.numeroConta1 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-3 relative z-10">
+                                      <label className="block text-[10px] font-bold font-mono tracking-wider text-amber-400/80 uppercase">Conta Bancária 2 (Opcional)</label>
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input
+                                          type="text"
+                                          name="bancoConta2"
+                                          placeholder="Banco"
+                                          value={formData.bancoConta2 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                        <input
+                                          type="text"
+                                          name="agenciaConta2"
+                                          placeholder="Agência"
+                                          value={formData.agenciaConta2 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                        <input
+                                          type="text"
+                                          name="numeroConta2"
+                                          placeholder="Número da Conta"
+                                          value={formData.numeroConta2 || ''}
+                                          onChange={handleChange}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="pt-2 relative z-10">
+                                      <button
+                                        type="button"
+                                        onClick={handleFormSubmit}
+                                        className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-extrabold rounded-xl text-xs uppercase shadow-lg shadow-amber-900/50 hover:shadow-amber-900/80 transition-all"
+                                      >
+                                        Atualizar Registro (Salvar Candidatura)
+                                      </button>
+                                      <p className="text-[9px] text-slate-500 mt-2 text-center">Ao clicar aqui, os dados preenchidos serão salvos imediatamente.</p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="space-y-2 pt-4 border-t border-slate-800">
                                   <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase">
                                     Fotos para Banca de Heteroidentificação
                                   </label>
@@ -2277,10 +2485,52 @@ export default function App() {
         )}
       </main>
 
+      {/* Modal - Print Preview */}
+      <AnimatePresence>
+        {showPrintPreview && selectedRecord && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 print:hidden">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-slate-700 overflow-hidden shadow-2xl"
+            >
+              <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Printer className="h-5 w-5 text-amber-500" />
+                  Pré-visualização da Ficha Individual
+                </h3>
+                <button onClick={() => setShowPrintPreview(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-800 flex justify-center custom-scrollbar">
+                <div className="transform scale-[0.6] sm:scale-75 md:scale-[0.85] lg:scale-100 origin-top">
+                  <div className="shadow-2xl bg-white">
+                     <FichaA4 selectedRecord={selectedRecord} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3 flex-wrap">
+                <button onClick={() => setShowPrintPreview(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-sm transition-colors">
+                  Voltar
+                </button>
+                <button onClick={handlePrintAndPDF} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm flex items-center gap-2 transition-colors">
+                  <Download className="h-4 w-4" />
+                  <span>Gerar PDF e Imprimir</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Modal - Detail Record View */}
       <AnimatePresence>
         {selectedRecord && (
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2323,6 +2573,48 @@ export default function App() {
                           <p className="text-[10px] font-mono uppercase text-slate-400 font-bold">Cargo Alvo 2026</p>
                           <p className="text-emerald-300 font-bold text-xs mt-0.5">{selectedRecord.cargoPretendido2026 || 'Não especificado'}</p>
                         </div>
+                      )}
+                      {selectedRecord.candidaturaHomologada === 'Sim' && (
+                        <>
+                          <div className="col-span-1 sm:col-span-2 mt-2 pt-2 border-t border-emerald-500/10">
+                            <h4 className="text-[10px] font-mono uppercase text-amber-400 font-bold flex items-center gap-1 mb-2">
+                              <Sparkles className="h-3 w-3" />
+                              Candidatura Homologada
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <p className="text-[9px] font-mono uppercase text-slate-500">Nome para Urna</p>
+                                <p className="text-white font-semibold text-xs">{selectedRecord.nomeUrna || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-mono uppercase text-slate-500">Número para Urna</p>
+                                <p className="text-white font-mono text-xs">{selectedRecord.numeroUrna || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-mono uppercase text-slate-500">CNPJ</p>
+                                <p className="text-white font-mono text-xs">{selectedRecord.cnpjCandidatura || '-'}</p>
+                              </div>
+                            </div>
+                            {(selectedRecord.bancoConta1 || selectedRecord.bancoConta2) && (
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {selectedRecord.bancoConta1 && (
+                                  <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                                    <p className="text-[9px] font-mono uppercase text-amber-500 font-bold mb-1">Conta Bancária 1</p>
+                                    <p className="text-xs text-white"><span className="text-slate-500">Banco:</span> {selectedRecord.bancoConta1}</p>
+                                    <p className="text-xs text-white"><span className="text-slate-500">Ag:</span> {selectedRecord.agenciaConta1 || '-'} <span className="text-slate-500 ml-1">CC:</span> {selectedRecord.numeroConta1 || '-'}</p>
+                                  </div>
+                                )}
+                                {selectedRecord.bancoConta2 && (
+                                  <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+                                    <p className="text-[9px] font-mono uppercase text-amber-500 font-bold mb-1">Conta Bancária 2</p>
+                                    <p className="text-xs text-white"><span className="text-slate-500">Banco:</span> {selectedRecord.bancoConta2}</p>
+                                    <p className="text-xs text-white"><span className="text-slate-500">Ag:</span> {selectedRecord.agenciaConta2 || '-'} <span className="text-slate-500 ml-1">CC:</span> {selectedRecord.numeroConta2 || '-'}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>
                       )}
                       <div>
                         <p className="text-[10px] font-mono uppercase text-slate-400 font-bold">Exerce mandato político em 2026?</p>
@@ -2413,17 +2705,24 @@ export default function App() {
 
               {/* Modal Footer */}
               <div className="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between">
-                <p className="text-[10px] font-mono text-slate-500">ID Ficha: {selectedRecord.id}</p>
-                <div className="flex gap-2">
+                <p className="text-[10px] font-mono text-slate-500 hidden sm:block">ID Ficha: {selectedRecord.id}</p>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+                  <button
+                    onClick={() => setShowPrintPreview(true)}
+                    className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors"
+                  >
+                    <Printer className="h-4 w-4" />
+                    <span>Pré-visualizar Ficha</span>
+                  </button>
                   <button
                     onClick={() => handleEditRecord(selectedRecord)}
-                    className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
                   >
-                    Editar / Revisar Dados
+                    Editar / Revisar
                   </button>
                   <button
                     onClick={() => setSelectedRecord(null)}
-                    className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors"
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors"
                   >
                     Fechar
                   </button>
@@ -2529,5 +2828,11 @@ export default function App() {
       </footer>
 
     </div>
+
+      {/* Printable Area - Hidden on screen, visible only when printing */}
+      <div id="printable-area" className="hidden print:block print:bg-[#ffffff] print:text-[#000000] w-full min-h-screen font-sans">
+        {selectedRecord && <FichaA4 selectedRecord={selectedRecord} />}
+      </div>
+    </>
   );
 }

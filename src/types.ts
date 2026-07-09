@@ -42,6 +42,16 @@ export interface FormRecord {
   foto2?: string; // Foto 2
   foto3?: string; // Foto 3
   prioridade?: string; // Prioridade (A, B, C) (Acesso exclusivo administrador)
+  candidaturaHomologada?: string; // Se a candidatura foi homologada
+  cnpjCandidatura?: string; // CNPJ da candidatura
+  nomeUrna?: string; // Nome na Urna
+  numeroUrna?: string; // Número para Urna
+  bancoConta1?: string;
+  agenciaConta1?: string;
+  numeroConta1?: string;
+  bancoConta2?: string;
+  agenciaConta2?: string;
+  numeroConta2?: string;
 }
 
 export type TabType = 'form' | 'records' | 'export';

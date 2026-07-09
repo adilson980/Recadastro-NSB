@@ -28,3 +28,24 @@ input[type="email"],
 textarea {
   text-transform: uppercase;
 }
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  @page {
+    margin-top: 2.5cm;
+    margin-right: 2.0cm;
+    margin-bottom: 2.0cm;
+    margin-left: 2.5cm;
+    size: A4 portrait;
+  }
+
+  .print-no-padding {
+    padding: 0 !important;
+  }
+}
