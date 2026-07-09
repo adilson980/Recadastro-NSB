@@ -926,7 +926,8 @@ export default function App() {
     const candidates2026List = combined
       .filter(r => r.pretendeConcorrer2026 === 'Sim')
       .map(r => ({
-        nome: (r.nomeCompleto || '').split(' ').slice(0, 2).join(' '),
+        record: r,
+        nome: (r.nomeCompleto || '').split(' ').slice(0, 3).join(' '),
         uf: r.estado || 'N/A',
         cargo: r.cargoPretendido2026 || 'Não especificado'
       }));
@@ -2288,15 +2289,15 @@ export default function App() {
                 <div className="flex-1 mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
                   {/* Left: Chart */}
                   <div className="flex flex-col justify-between h-full">
-                    <div className="h-[250px] w-full relative">
+                    <div className="h-[300px] w-full relative">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={stats.intentionsChartData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={60}
-                            outerRadius={85}
+                            innerRadius={70}
+                            outerRadius={100}
                             paddingAngle={5}
                             dataKey="value"
                             label={{ fill: '#94a3b8', fontSize: 13, fontWeight: 500 }}
@@ -2336,9 +2337,13 @@ export default function App() {
                           {stats.candidates2026List.length > 0 ? (
                             stats.candidates2026List.map((cand, idx) => (
                               <tr key={idx} className="border-b border-slate-800/50 hover:bg-slate-800/80 transition-colors">
-                                <td className="py-2.5 px-4 font-semibold text-white uppercase text-xs leading-snug break-words" style={{ minWidth: '160px' }}>{cand.nome}</td>
-                                <td className="py-2.5 px-4 text-slate-400 font-mono text-xs">{cand.uf}</td>
-                                <td className="py-2.5 px-4 text-emerald-300 uppercase text-xs leading-snug break-words">{cand.cargo}</td>
+                                <td className="py-2.5 px-4 font-semibold text-white uppercase text-[10px] sm:text-[11px] leading-snug break-words" style={{ minWidth: '160px' }}>
+                                  <button onClick={() => setSelectedRecord(cand.record)} className="text-emerald-400 hover:text-emerald-300 hover:underline text-left transition-colors cursor-pointer w-full">
+                                    {cand.nome}
+                                  </button>
+                                </td>
+                                <td className="py-2.5 px-4 text-slate-400 font-mono text-[10px] sm:text-[11px]">{cand.uf}</td>
+                                <td className="py-2.5 px-4 text-emerald-300 uppercase text-[10px] sm:text-[11px] leading-snug break-words">{cand.cargo}</td>
                               </tr>
                             ))
                           ) : (
