@@ -32,7 +32,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
-import { parseCSVData, sanitizeCPF, formatCPF, formatPhone } from './csvParser';
+import { parseCSVData, sanitizeCPF, isValidCPF, formatCPF, formatPhone } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
@@ -233,6 +233,14 @@ export default function App() {
     const [adminUser, setAdminUser] = useState<User | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
 
+  const ALLOWED_ADMIN_EMAILS = [
+    'j.adilson_bezerra@hotmail.com',
+    'euclides.vs@gmail.com',
+    'valneidepsb40@gmail.com'
+  ];
+  
+  const isUserAdmin = adminUser && adminUser.email && ALLOWED_ADMIN_EMAILS.includes(adminUser.email.toLowerCase());
+
   useEffect(() => {
     // If running in a sandboxed iframe, delay loading of Firebase Auth's session-checking background iframe
     // until the user actually leaves the 'form' tab (such as clicking 'records' or 'export').
@@ -241,7 +249,11 @@ export default function App() {
       return;
     }
 
+    const unsubscribe = onAuthStateChanged(getAuth(app), (user) => {
+      setAdminUser(user);
+    });
 
+    return () => unsubscribe();
   }, [activeTab]);
 
   const handleAdminLoginGoogle = async (e: React.FormEvent) => {
@@ -363,8 +375,8 @@ export default function App() {
   const handleCpfCheck = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanSearch = sanitizeCPF(cpfSearch);
-    if (cleanSearch.length < 11) {
-      triggerNotification('Digite um CPF válido com 11 dígitos', 'error');
+    if (!isValidCPF(cleanSearch)) {
+      triggerNotification('Digite um CPF válido com 11 dígitos corretos', 'error');
       return;
     }
 
@@ -498,7 +510,7 @@ export default function App() {
   // Step validation
   const validateStep = (step: number): boolean => {
     if (step === 1) {
-      return (formData.nomeCompleto || '').trim().length >= 3 && sanitizeCPF(formData.cpf || '').length === 11;
+      return (formData.nomeCompleto || '').trim().length >= 3 && isValidCPF(formData.cpf || '');
     }
     if (step === 2) {
       return (formData.cidade || '').trim().length >= 2 && (formData.estado || '').trim().length === 2 && (formData.telefone || '').trim().length >= 10;
@@ -977,6 +989,65 @@ export default function App() {
       priorityList
     };
   }, [savedRecords, csvRecords]);
+
+  const renderAdminGuard = (children: React.ReactNode) => {
+    if (isUserAdmin) {
+      return children;
+    }
+
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center justify-center min-h-[500px] text-center space-y-6 bg-slate-900/50 rounded-3xl border border-slate-800 p-8 my-8 shadow-2xl"
+      >
+        <div className="w-20 h-20 bg-slate-950 rounded-full flex items-center justify-center border border-slate-800 shadow-xl shadow-emerald-900/20">
+          <Lock className="h-8 w-8 text-emerald-500" />
+        </div>
+        <div>
+          <h2 className="text-3xl font-black text-white uppercase tracking-wider mb-3">Acesso Restrito</h2>
+          <p className="text-slate-400 max-w-lg mx-auto">
+            A área administrativa é restrita a usuários autorizados (Dirigentes). Faça login com uma conta Google aprovada para visualizar e exportar os registros.
+          </p>
+          
+          {adminUser && !isUserAdmin && (
+            <div className="mt-6 bg-red-950/40 border border-red-500/20 rounded-2xl p-5 text-left max-w-md mx-auto">
+              <p className="text-red-400 font-bold mb-1 uppercase tracking-wider text-sm flex items-center gap-2">
+                Acesso Negado
+              </p>
+              <p className="text-slate-300 text-sm mt-2">
+                A conta <span className="text-white font-mono bg-slate-900 px-2 py-0.5 rounded-md">{adminUser.email}</span> não está autorizada.
+              </p>
+            </div>
+          )}
+          
+          {adminError && (
+            <div className="mt-4 bg-amber-950/40 border border-amber-500/20 rounded-2xl p-5 text-left max-w-md mx-auto">
+              <p className="text-amber-400 text-sm">{adminError}</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex gap-4 mt-4">
+          {adminUser ? (
+            <button 
+              onClick={handleAdminLogout} 
+              className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-all shadow-lg border border-slate-700"
+            >
+              Sair da conta e tentar novamente
+            </button>
+          ) : (
+            <button 
+              onClick={handleAdminLoginGoogle} 
+              className="px-8 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-emerald-900/40 shadow-xl flex items-center gap-3"
+            >
+              Fazer login com Google
+            </button>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <>
@@ -1958,7 +2029,7 @@ export default function App() {
         )}
 
         {/* Tab 2: Banco de Dados completo */}
-        {activeTab === 'records' && (
+        {activeTab === 'records' && renderAdminGuard(
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2161,7 +2232,7 @@ export default function App() {
         )}
 
         {/* Tab 3: Metrics & Export panel */}
-        {activeTab === 'export' && (
+        {activeTab === 'export' && renderAdminGuard(
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

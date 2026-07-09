@@ -78,8 +78,37 @@ export function parseCSVData(csvText: string): FormRecord[] {
 // Re-format CPF standard string to let search be robust (removes dots, dashes, spaces)
 export function sanitizeCPF(cpf: string): string {
   if (!cpf) return '';
-  // Normalize capital letter O to number 0 (just in case) and replace non-digit chars
   return cpf.toString().toUpperCase().replace(/O/g, '0').replace(/\D/g, '');
+}
+
+export function isValidCPF(cpf: string): boolean {
+  const sanitized = sanitizeCPF(cpf);
+  if (sanitized.length !== 11) return false;
+  
+  // check for all same digits
+  if (/^(\d)\1{10}$/.test(sanitized)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(sanitized.charAt(i)) * (10 - i);
+  }
+  
+  let remainder = 11 - (sum % 11);
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  
+  if (remainder !== parseInt(sanitized.charAt(9))) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(sanitized.charAt(i)) * (11 - i);
+  }
+  
+  remainder = 11 - (sum % 11);
+  if (remainder === 10 || remainder === 11) remainder = 0;
+  
+  if (remainder !== parseInt(sanitized.charAt(10))) return false;
+
+  return true;
 }
 
 // Format CPF visually as 000.000.000-00
