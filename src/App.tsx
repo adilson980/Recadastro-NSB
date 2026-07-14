@@ -1070,6 +1070,24 @@ export default function App() {
     const colorChartData = Object.keys(colorMap).map(k => ({ name: k, value: colorMap[k] })).sort((a,b) => b.value - a.value);
     const priorityChartData = Object.keys(priorityMap).map(k => ({ name: k, value: priorityMap[k] }));
 
+    let totalDepFederal = 0;
+    let totalDepEstadual = 0;
+    let totalDepFederalMasc = 0;
+    let totalDepFederalFem = 0;
+
+    combined.forEach(r => {
+      if (r.pretendeConcorrer2026 === 'Sim') {
+        const cargo = (r.cargoPretendido2026 || '').toUpperCase();
+        if (cargo === 'DEPUTADO(A) FEDERAL') {
+          totalDepFederal++;
+          if (r.sexo === 'Masculino') totalDepFederalMasc++;
+          if (r.sexo === 'Feminino') totalDepFederalFem++;
+        } else if (cargo === 'DEPUTADO(A) ESTADUAL') {
+          totalDepEstadual++;
+        }
+      }
+    });
+
     return {
       totalLocalUpdates,
       totalRepresented,
@@ -1082,7 +1100,11 @@ export default function App() {
       genderChartData,
       colorChartData,
       priorityChartData,
-      priorityList
+      priorityList,
+      totalDepFederal,
+      totalDepEstadual,
+      totalDepFederalMasc,
+      totalDepFederalFem
     };
   }, [savedRecords, csvRecords]);
 
@@ -2377,6 +2399,38 @@ export default function App() {
                 <p className="text-xs text-slate-400 mt-2">A base combinada unificada de dados disponíveis para consulta.</p>
               </div>
 
+            </div>
+
+            {/* Deputados Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FEDERAL</h3>
+                  <p className="text-3xl font-black text-white">{stats.totalDepFederal}</p>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Candidatos a Deputado Federal.</p>
+              </div>
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. ESTADUAL</h3>
+                  <p className="text-3xl font-black text-white">{stats.totalDepEstadual}</p>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Candidatos a Deputado Estadual.</p>
+              </div>
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FED (MASC)</h3>
+                  <p className="text-3xl font-black text-white">{stats.totalDepFederalMasc}</p>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Homens (Deputado Federal).</p>
+              </div>
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FED (FEM)</h3>
+                  <p className="text-3xl font-black text-white">{stats.totalDepFederalFem}</p>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Mulheres (Deputado Federal).</p>
+              </div>
             </div>
 
             {/* Dashboard Graphs */}
