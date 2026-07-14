@@ -2402,7 +2402,7 @@ export default function App() {
             </div>
 
             {/* Deputados Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
                 <div className="space-y-1">
                   <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FEDERAL</h3>
@@ -2430,6 +2430,13 @@ export default function App() {
                   <p className="text-3xl font-black text-white">{stats.totalDepFederalFem}</p>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2">Mulheres (Deputado Federal).</p>
+              </div>
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">EM ESTUDO</h3>
+                  <p className="text-3xl font-black text-white">{stats.candidate2026Intents.estudo}</p>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Candidaturas em estudo.</p>
               </div>
             </div>
 
