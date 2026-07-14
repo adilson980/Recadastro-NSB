@@ -3,103 +3,84 @@ import re
 with open("src/App.tsx", "r") as f:
     content = f.read()
 
-new_content = """            {/* Deputados Stats */}
-            <div className="grid grid-cols-1 gap-6">
-              {/* Row 1: Deputado Federal */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {/* Federal Masc */}
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -ml-10 -mt-10"></div>
-                  <div className="space-y-1 relative z-10">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 mb-3">
-                      <UserIcon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FED (MASC)</h3>
-                    <p className="text-3xl font-black text-white">{stats.totalDepFederalMasc}</p>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 relative z-10">Homens (Dep. Federal).</p>
-                </div>
-                {/* Federal Fem */}
-                <div className="p-5 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                  <div className="space-y-1 relative z-10">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-3">
-                      <UserIcon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-emerald-400/80 uppercase pt-2">DEP. FED (FEM)</h3>
-                    <p className="text-3xl font-black text-emerald-400">{stats.totalDepFederalFem}</p>
-                  </div>
-                  <p className="text-[10px] text-emerald-500/70 mt-2 relative z-10">Mulheres (Dep. Federal).</p>
-                </div>
-                {/* Federal Total */}
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-800/50 text-slate-300 flex items-center justify-center border border-slate-700 mb-3">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. FEDERAL (TOTAL)</h3>
-                    <p className="text-3xl font-black text-white">{stats.totalDepFederal}</p>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2">Candidatos a Dep. Federal.</p>
-                </div>
-              </div>
+new_content = """    const genderChartData = Object.keys(genderMap).map(k => ({ name: k, value: genderMap[k] }));
+    const colorChartData = Object.keys(colorMap).map(k => ({ name: k, value: colorMap[k] })).sort((a,b) => b.value - a.value);
+    const priorityChartData = Object.keys(priorityMap).map(k => ({ name: k, value: priorityMap[k] }));
 
-              {/* Row 2: Deputado Estadual */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {/* Estadual Masc */}
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -ml-10 -mt-10"></div>
-                  <div className="space-y-1 relative z-10">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 mb-3">
-                      <UserIcon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. EST (MASC)</h3>
-                    <p className="text-3xl font-black text-white">{stats.totalDepEstadualMasc}</p>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2 relative z-10">Homens (Dep. Estadual).</p>
-                </div>
-                {/* Estadual Fem */}
-                <div className="p-5 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                  <div className="space-y-1 relative z-10">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-3">
-                      <UserIcon className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-emerald-400/80 uppercase pt-2">DEP. EST (FEM)</h3>
-                    <p className="text-3xl font-black text-emerald-400">{stats.totalDepEstadualFem}</p>
-                  </div>
-                  <p className="text-[10px] text-emerald-500/70 mt-2 relative z-10">Mulheres (Dep. Estadual).</p>
-                </div>
-                {/* Estadual Total */}
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <div className="w-10 h-10 rounded-2xl bg-slate-800/50 text-slate-300 flex items-center justify-center border border-slate-700 mb-3">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">DEP. ESTADUAL (TOTAL)</h3>
-                    <p className="text-3xl font-black text-white">{stats.totalDepEstadual}</p>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2">Candidatos a Dep. Estadual.</p>
-                </div>
-              </div>
+    let totalDepFederal = 0;
+    let totalDepEstadual = 0;
+    let totalDepFederalMasc = 0;
+    let totalDepFederalFem = 0;
+    let totalDepFederalNaoDecl = 0;
+    let totalDepEstadualMasc = 0;
+    let totalDepEstadualFem = 0;
+    let totalDepEstadualNaoDecl = 0;
 
-              {/* Row 3: Em Estudo */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 mb-3">
-                      <BookOpen className="h-5 w-5" />
-                    </div>
-                    <h3 className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase pt-2">EM ESTUDO</h3>
-                    <p className="text-3xl font-black text-white">{stats.candidate2026Intents.estudo}</p>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-2">Candidaturas em estudo.</p>
-                </div>
-              </div>
-            </div>"""
+    const listDepFederalMasc: FormRecord[] = [];
+    const listDepFederalFem: FormRecord[] = [];
+    const listDepFederalNaoDecl: FormRecord[] = [];
+    const listDepFederal: FormRecord[] = [];
+    const listDepEstadualMasc: FormRecord[] = [];
+    const listDepEstadualFem: FormRecord[] = [];
+    const listDepEstadualNaoDecl: FormRecord[] = [];
+    const listDepEstadual: FormRecord[] = [];
+    const listEmEstudo: FormRecord[] = [];
 
-pattern = re.compile(r'\{\/\* Deputados Stats \*\/\}.*?\{\/\* Dashboard Graphs \*\/\}', re.DOTALL)
-updated_content = pattern.sub(new_content + '\n\n            {/* Dashboard Graphs */}', content)
+    combined.forEach(r => {
+      if (r.pretendeConcorrer2026 === 'Sim') {
+        const cargo = (r.cargoPretendido2026 || '').toUpperCase();
+        if (cargo === 'DEPUTADO(A) FEDERAL') {
+          totalDepFederal++;
+          listDepFederal.push(r);
+          if (r.sexo === 'Masculino') { totalDepFederalMasc++; listDepFederalMasc.push(r); }
+          else if (r.sexo === 'Feminino') { totalDepFederalFem++; listDepFederalFem.push(r); }
+          else { totalDepFederalNaoDecl++; listDepFederalNaoDecl.push(r); }
+        } else if (cargo === 'DEPUTADO(A) ESTADUAL') {
+          totalDepEstadual++;
+          listDepEstadual.push(r);
+          if (r.sexo === 'Masculino') { totalDepEstadualMasc++; listDepEstadualMasc.push(r); }
+          else if (r.sexo === 'Feminino') { totalDepEstadualFem++; listDepEstadualFem.push(r); }
+          else { totalDepEstadualNaoDecl++; listDepEstadualNaoDecl.push(r); }
+        }
+      } else if (r.pretendeConcorrer2026 === 'Em estudo') {
+          listEmEstudo.push(r);
+      }
+    });
+
+    return {
+      totalLocalUpdates,
+      totalRepresented,
+      nsbMembers,
+      statesMap,
+      candidate2026Intents,
+      candidates2026List,
+      intentionsChartData,
+      statesChartData,
+      genderChartData,
+      colorChartData,
+      priorityChartData,
+      priorityList,
+      totalDepFederal,
+      totalDepEstadual,
+      totalDepFederalMasc,
+      totalDepFederalFem,
+      totalDepFederalNaoDecl,
+      totalDepEstadualMasc,
+      totalDepEstadualFem,
+      totalDepEstadualNaoDecl,
+      listDepFederalMasc,
+      listDepFederalFem,
+      listDepFederalNaoDecl,
+      listDepFederal,
+      listDepEstadualMasc,
+      listDepEstadualFem,
+      listDepEstadualNaoDecl,
+      listDepEstadual,
+      listEmEstudo
+    };"""
+
+pattern = re.compile(r'    const genderChartData = Object\.keys\(genderMap\)\.map.*?    \};\n', re.DOTALL)
+updated_content = pattern.sub(new_content + '\n', content)
 
 with open("src/App.tsx", "w") as f:
     f.write(updated_content)

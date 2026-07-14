@@ -311,6 +311,9 @@ export default function App() {
   // Admin and UI state
   const [selectedRecord, setSelectedRecord] = useState<FormRecord | null>(null);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [statsModalTitle, setStatsModalTitle] = useState('');
+  const [statsModalData, setStatsModalData] = useState<FormRecord[]>([]);
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null);
   const [errorCSV, setErrorCSV] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
@@ -1081,20 +1084,34 @@ export default function App() {
     let totalDepEstadualFem = 0;
     let totalDepEstadualNaoDecl = 0;
 
+    const listDepFederalMasc: FormRecord[] = [];
+    const listDepFederalFem: FormRecord[] = [];
+    const listDepFederalNaoDecl: FormRecord[] = [];
+    const listDepFederal: FormRecord[] = [];
+    const listDepEstadualMasc: FormRecord[] = [];
+    const listDepEstadualFem: FormRecord[] = [];
+    const listDepEstadualNaoDecl: FormRecord[] = [];
+    const listDepEstadual: FormRecord[] = [];
+    const listEmEstudo: FormRecord[] = [];
+
     combined.forEach(r => {
       if (r.pretendeConcorrer2026 === 'Sim') {
         const cargo = (r.cargoPretendido2026 || '').toUpperCase();
         if (cargo === 'DEPUTADO(A) FEDERAL') {
           totalDepFederal++;
-          if (r.sexo === 'Masculino') totalDepFederalMasc++;
-          else if (r.sexo === 'Feminino') totalDepFederalFem++;
-          else totalDepFederalNaoDecl++;
+          listDepFederal.push(r);
+          if (r.sexo === 'Masculino') { totalDepFederalMasc++; listDepFederalMasc.push(r); }
+          else if (r.sexo === 'Feminino') { totalDepFederalFem++; listDepFederalFem.push(r); }
+          else { totalDepFederalNaoDecl++; listDepFederalNaoDecl.push(r); }
         } else if (cargo === 'DEPUTADO(A) ESTADUAL') {
           totalDepEstadual++;
-          if (r.sexo === 'Masculino') totalDepEstadualMasc++;
-          else if (r.sexo === 'Feminino') totalDepEstadualFem++;
-          else totalDepEstadualNaoDecl++;
+          listDepEstadual.push(r);
+          if (r.sexo === 'Masculino') { totalDepEstadualMasc++; listDepEstadualMasc.push(r); }
+          else if (r.sexo === 'Feminino') { totalDepEstadualFem++; listDepEstadualFem.push(r); }
+          else { totalDepEstadualNaoDecl++; listDepEstadualNaoDecl.push(r); }
         }
+      } else if (r.pretendeConcorrer2026 === 'Em estudo') {
+          listEmEstudo.push(r);
       }
     });
 
@@ -1118,9 +1135,24 @@ export default function App() {
       totalDepFederalNaoDecl,
       totalDepEstadualMasc,
       totalDepEstadualFem,
-      totalDepEstadualNaoDecl
+      totalDepEstadualNaoDecl,
+      listDepFederalMasc,
+      listDepFederalFem,
+      listDepFederalNaoDecl,
+      listDepFederal,
+      listDepEstadualMasc,
+      listDepEstadualFem,
+      listDepEstadualNaoDecl,
+      listDepEstadual,
+      listEmEstudo
     };
   }, [savedRecords, csvRecords]);
+
+  const openStatsModal = (title: string, data: FormRecord[]) => {
+    setStatsModalTitle(title);
+    setStatsModalData(data);
+    setIsStatsModalOpen(true);
+  };
 
   const renderAdminGuard = (children: React.ReactNode) => {
     if (isUserAdmin) {
@@ -2420,7 +2452,7 @@ export default function App() {
               {/* Row 1: Deputado Federal */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Federal Masc */}
-                <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Deputados Federais (Homens)", stats.listDepFederalMasc)} className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -ml-10 -mt-10"></div>
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 mb-2">
@@ -2432,7 +2464,7 @@ export default function App() {
                   <p className="text-[10px] text-slate-400 mt-1 relative z-10">Homens (Dep. Federal).</p>
                 </div>
                 {/* Federal Fem */}
-                <div className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Deputadas Federais (Mulheres)", stats.listDepFederalFem)} className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-emerald-500/50 transition-colors">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-2">
@@ -2444,7 +2476,7 @@ export default function App() {
                   <p className="text-[10px] text-emerald-500/70 mt-1 relative z-10">Mulheres (Dep. Federal).</p>
                 </div>
                 {/* Federal Nao Declarado */}
-                <div className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Dep. Federais (Não Declarado)", stats.listDepFederalNaoDecl)} className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-slate-800/50 text-slate-400 flex items-center justify-center border border-slate-700 mb-2">
                       <UserIcon className="h-4 w-4" />
@@ -2456,7 +2488,7 @@ export default function App() {
                 </div>
                 
                 {/* Federal Total */}
-                <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div onClick={() => openStatsModal("Deputados Federais (Total)", stats.listDepFederal)} className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="space-y-1">
                     <div className="w-8 h-8 rounded-xl bg-slate-800/50 text-slate-300 flex items-center justify-center border border-slate-700 mb-2">
                       <Users className="h-4 w-4" />
@@ -2473,7 +2505,7 @@ export default function App() {
               {/* Row 2: Deputado Estadual */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Estadual Masc */}
-                <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Deputados Estaduais (Homens)", stats.listDepEstadualMasc)} className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -ml-10 -mt-10"></div>
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 mb-2">
@@ -2485,7 +2517,7 @@ export default function App() {
                   <p className="text-[10px] text-slate-400 mt-1 relative z-10">Homens (Dep. Estadual).</p>
                 </div>
                 {/* Estadual Fem */}
-                <div className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Deputadas Estaduais (Mulheres)", stats.listDepEstadualFem)} className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/20 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-emerald-500/50 transition-colors">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-2">
@@ -2497,7 +2529,7 @@ export default function App() {
                   <p className="text-[10px] text-emerald-500/70 mt-1 relative z-10">Mulheres (Dep. Estadual).</p>
                 </div>
                 {/* Estadual Nao Declarado */}
-                <div className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                <div onClick={() => openStatsModal("Dep. Estaduais (Não Declarado)", stats.listDepEstadualNaoDecl)} className="p-4 rounded-3xl bg-slate-900/50 border border-slate-800 flex flex-col justify-between relative overflow-hidden cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="space-y-1 relative z-10">
                     <div className="w-8 h-8 rounded-xl bg-slate-800/50 text-slate-400 flex items-center justify-center border border-slate-700 mb-2">
                       <UserIcon className="h-4 w-4" />
@@ -2509,7 +2541,7 @@ export default function App() {
                 </div>
                 
                 {/* Estadual Total */}
-                <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div onClick={() => openStatsModal("Deputados Estaduais (Total)", stats.listDepEstadual)} className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="space-y-1">
                     <div className="w-8 h-8 rounded-xl bg-slate-800/50 text-slate-300 flex items-center justify-center border border-slate-700 mb-2">
                       <Users className="h-4 w-4" />
@@ -2525,7 +2557,7 @@ export default function App() {
 
               {/* Row 3: Em Estudo */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between">
+                <div onClick={() => openStatsModal("Candidaturas em Estudo", stats.listEmEstudo)} className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 flex flex-col justify-between cursor-pointer hover:border-slate-500 transition-colors">
                   <div className="space-y-1">
                     <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20 mb-2">
                       <BookOpen className="h-4 w-4" />
@@ -3165,6 +3197,72 @@ export default function App() {
       </footer>
 
     </div>
+
+
+      {/* Stats List Modal */}
+      <AnimatePresence>
+        {isStatsModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl relative"
+            >
+              <button
+                onClick={() => setIsStatsModalOpen(false)}
+                className="absolute top-4 right-4 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              <h2 className="text-xl font-bold text-white mb-2">{statsModalTitle}</h2>
+              <p className="text-sm text-slate-400 mb-6">Total: {statsModalData.length} registros encontrados.</p>
+              
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                {statsModalData.length === 0 ? (
+                  <div className="text-center py-10 text-slate-500">
+                    <Filter className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p>Nenhum registro encontrado nesta categoria.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {statsModalData.map((record, i) => (
+                      <div key={i} className="bg-slate-950/50 border border-slate-800/80 p-4 rounded-2xl">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-bold text-white text-sm line-clamp-1">{record.nomeCompleto}</h4>
+                            <p className="text-xs text-slate-500">{record.cpf}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            record.prioridade === 'Alta' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                            record.prioridade === 'Média' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                            'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          }`}>
+                            {record.prioridade}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-slate-400 mt-2">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {record.municipio} - {record.uf}
+                          </div>
+                          {record.sexo && (
+                            <div className="flex items-center gap-1">
+                              <UserIcon className="h-3 w-3" />
+                              {record.sexo}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Printable Area - Hidden on screen, visible only when printing */}
       <div id="printable-area" className="hidden print:block print:bg-[#ffffff] print:text-[#000000] w-full min-h-screen font-sans">
