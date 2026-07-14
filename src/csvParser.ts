@@ -55,7 +55,7 @@ export function parseCSVData(csvText: string): FormRecord[] {
       cidade: cols[14] || '',
       estado: cols[15] || '',
       aeroportoOrigem: cols[16] || '',
-      telefone: cols[17] || '',
+      telefone: formatPhone(cols[17] || ''),
       cep: cols[18] || '',
       email: cols[19] || '',
       jaFoiCandidato: cols[20] || '',

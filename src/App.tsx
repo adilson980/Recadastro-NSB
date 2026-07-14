@@ -27,7 +27,8 @@ import {
   Camera,
   Upload,
   RefreshCw,
-  Printer
+  Printer,
+  ListOrdered
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
@@ -321,7 +322,12 @@ export default function App() {
       (snapshot) => {
         const records: FormRecord[] = [];
         snapshot.forEach((doc) => {
-          records.push({ id: doc.id, ...doc.data() } as FormRecord);
+          const data = doc.data();
+          records.push({ 
+            id: doc.id, 
+            ...data,
+            telefone: formatPhone(data.telefone || '')
+          } as FormRecord);
         });
         setSavedRecords(records);
       },
@@ -386,7 +392,12 @@ export default function App() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        const savedMatch = { id: docSnap.id, ...docSnap.data() } as FormRecord;
+        const data = docSnap.data();
+        const savedMatch = { 
+          id: docSnap.id, 
+          ...data,
+          telefone: formatPhone(data.telefone || '') 
+        } as FormRecord;
         setFormData({
           ...savedMatch,
           revisadoPara2026: true,
@@ -554,6 +565,7 @@ export default function App() {
     const recordToSave: FormRecord = {
       ...formData,
       id: recordId,
+      telefone: formatPhone(formData.telefone || ''),
       timestamp: formData.timestamp || new Date().toLocaleString('pt-BR'),
       dataAtualizacao2026: new Date().toLocaleString('pt-BR'),
       revisadoPara2026: true
@@ -760,6 +772,89 @@ export default function App() {
 
       XLSX.writeFile(workbook, 'nsb_candidatos_filtrados_2026.xlsx');
       triggerNotification('Planilha Excel (.xlsx) exportada com sucesso!', 'success');
+    } catch (err) {
+      console.error('Erro ao exportar planilha Excel:', err);
+      triggerNotification('Erro ao gerar arquivo Excel.', 'error');
+    }
+  };
+
+  const handleExportPriorityXLSX = () => {
+    const cargoOrder: Record<string, number> = {
+      'PRESIDENTE DA REPÚBLICA': 1,
+      'SENADOR(A) DA REPÚBLICA': 2,
+      'DEPUTADO(A) FEDERAL': 3,
+      'GOVERNADOR(A)': 4,
+      'DEPUTADO(A) ESTADUAL': 5
+    };
+    
+    const priorityOrder: Record<string, number> = {
+      'Alta': 1,
+      'Média': 2,
+      'Baixa': 3
+    };
+
+    const sortedCandidates = [...filteredList]
+      .filter(r => r.pretendeConcorrer2026 === 'Sim')
+      .sort((a, b) => {
+        // 1. Cargo Eletivo
+        const cargoA = a.cargoPretendido2026 || '';
+        const cargoB = b.cargoPretendido2026 || '';
+        const cA = cargoOrder[cargoA] || 99;
+        const cB = cargoOrder[cargoB] || 99;
+        if (cA !== cB) return cA - cB;
+
+        // 2. Prioridade
+        const pA = priorityOrder[a.prioridade || ''] || 99;
+        const pB = priorityOrder[b.prioridade || ''] || 99;
+        if (pA !== pB) return pA - pB;
+
+        // 3. Nome
+        const nomeA = (a.nomeCompleto || '').trim().toLowerCase();
+        const nomeB = (b.nomeCompleto || '').trim().toLowerCase();
+        if (nomeA < nomeB) return -1;
+        if (nomeA > nomeB) return 1;
+
+        // 4. UF
+        const ufA = (a.estado || '').trim().toLowerCase();
+        const ufB = (b.estado || '').trim().toLowerCase();
+        if (ufA < ufB) return -1;
+        if (ufA > ufB) return 1;
+
+        return 0;
+      });
+
+    const dataToExport = sortedCandidates.map(r => ({
+      'NOME COMPLETO': (r.nomeCompleto || '').trim().toUpperCase(),
+      'CPF': (r.cpf || '').trim().toUpperCase(),
+      'TELEFONE': (r.telefone || '').trim().toUpperCase(),
+      'UF': (r.estado || '').trim().toUpperCase(),
+      'CARGO A DISPUTAR EM 2026': (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').trim().toUpperCase(),
+      'PRIORIDADE': (r.prioridade || 'NÃO DEFINIDA').trim().toUpperCase()
+    }));
+
+    if (dataToExport.length === 0) {
+      triggerNotification('Nenhum registro com intenção de candidatura encontrado para exportar.', 'info');
+      return;
+    }
+
+    try {
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Prioridade');
+      
+      const maxLens = [18, 14, 15, 5, 25, 12];
+      dataToExport.forEach(row => {
+        maxLens[0] = Math.max(maxLens[0], row['NOME COMPLETO'].length);
+        maxLens[1] = Math.max(maxLens[1], row['CPF'].length);
+        maxLens[2] = Math.max(maxLens[2], row['TELEFONE'].length);
+        maxLens[3] = Math.max(maxLens[3], row['UF'].length);
+        maxLens[4] = Math.max(maxLens[4], row['CARGO A DISPUTAR EM 2026'].length);
+        maxLens[5] = Math.max(maxLens[5], row['PRIORIDADE'].length);
+      });
+      worksheet['!cols'] = maxLens.map(w => ({ wch: w + 2 }));
+
+      XLSX.writeFile(workbook, 'candidatos_prioridade_2026.xlsx');
+      triggerNotification('Planilha de Prioridade exportada com sucesso!', 'success');
     } catch (err) {
       console.error('Erro ao exportar planilha Excel:', err);
       triggerNotification('Erro ao gerar arquivo Excel.', 'error');
@@ -2063,6 +2158,13 @@ export default function App() {
                   >
                     <Sparkles className="h-4 w-4 text-emerald-300" />
                     <span>Exportar Candidatos (.xlsx)</span>
+                  </button>
+                  <button
+                    onClick={handleExportPriorityXLSX}
+                    className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
+                  >
+                    <ListOrdered className="h-4 w-4 text-indigo-300" />
+                    <span>(PRIORIDADE)</span>
                   </button>
                 </div>
               </div>
