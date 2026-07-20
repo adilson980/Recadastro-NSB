@@ -3213,8 +3213,8 @@ export default function App() {
                       <p><span className="text-slate-400 font-medium">Candidato Anterior:</span> <span>{selectedRecord.jaFoiCandidato || 'Não'}</span></p>
                       {selectedRecord.jaFoiCandidato === 'SIM' && (
                         <>
-                          <p><span className="text-slate-400 font-medium">Cargo Disputado:</span> <span>{selectedRecord.cargoDisputado || '-'} ({selectedRecord.anoUltimaEleicao})</span></p>
-                          <p><span className="text-slate-400 font-medium">Votos Obtenção:</span> <span className="font-mono">{selectedRecord.votacao || '0'}</span></p>
+                          <p><span className="text-slate-400 font-medium">Cargo Disputado</span> <span>{selectedRecord.cargoDisputado || '-'} ({selectedRecord.anoUltimaEleicao})</span></p>
+                          <p><span className="text-slate-400 font-medium">Total de votos na eleição:</span> <span className="font-mono">{selectedRecord.votacao || '0'}</span></p>
                         </>
                       )}
                     </div>
