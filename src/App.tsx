@@ -241,7 +241,8 @@ export default function App() {
   const ALLOWED_ADMIN_EMAILS = [
     'j.adilson_bezerra@hotmail.com',
     'euclides.vs@gmail.com',
-    'valneidepsb40@gmail.com'
+    'valneidepsb40@gmail.com',
+    'igorfrederico1@gmail.com'
   ];
   
   const isUserAdmin = adminUser && adminUser.email && ALLOWED_ADMIN_EMAILS.includes(adminUser.email.toLowerCase());
