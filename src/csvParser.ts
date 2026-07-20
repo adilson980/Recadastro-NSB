@@ -43,12 +43,12 @@ export function parseCSVData(csvText: string): FormRecord[] {
       cargoNsb: cols[2] || '',
       delegado: cols[3] || '',
       nomeCompleto: cols[4] || '',
-      dataNascimento: cols[5] || '',
+      dataNascimento: formatDate(cols[5] || ''),
       rg: cols[6] || '',
       cpf: cols[7] || '',
       sexo: cols[8] || '',
       corRaca: cols[9] || '',
-      tituloEleitorial: cols[10] || '',
+      tituloEleitorial: formatVoterID(cols[10] || ''),
       zona: cols[11] || '',
       secao: cols[12] || '',
       endereco: cols[13] || '',
@@ -127,4 +127,20 @@ export function formatPhone(phone: string): string {
   if (sanitized.length <= 6) return `(${sanitized.slice(0, 2)}) ${sanitized.slice(2)}`;
   if (sanitized.length <= 10) return `(${sanitized.slice(0, 2)}) ${sanitized.slice(2, 6)}-${sanitized.slice(6)}`;
   return `(${sanitized.slice(0, 2)}) ${sanitized.slice(2, 7)}-${sanitized.slice(7, 11)}`;
+}
+
+// Format Date visually as DD/MM/YYYY
+export function formatDate(date: string): string {
+  const sanitized = date.replace(/\D/g, '');
+  if (sanitized.length <= 2) return sanitized;
+  if (sanitized.length <= 4) return `${sanitized.slice(0, 2)}/${sanitized.slice(2)}`;
+  return `${sanitized.slice(0, 2)}/${sanitized.slice(2, 4)}/${sanitized.slice(4, 8)}`;
+}
+
+// Format Voter ID visually as 0000 0000 0000
+export function formatVoterID(id: string): string {
+  const sanitized = id.replace(/\D/g, '');
+  if (sanitized.length <= 4) return sanitized;
+  if (sanitized.length <= 8) return `${sanitized.slice(0, 4)} ${sanitized.slice(4)}`;
+  return `${sanitized.slice(0, 4)} ${sanitized.slice(4, 8)} ${sanitized.slice(8, 12)}`;
 }

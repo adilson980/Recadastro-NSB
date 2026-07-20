@@ -35,7 +35,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LabelList } from 'recharts';
 import { FormRecord, TabType, FilterOptions } from './types';
-import { parseCSVData, sanitizeCPF, isValidCPF, formatCPF, formatPhone } from './csvParser';
+import { parseCSVData, sanitizeCPF, isValidCPF, formatCPF, formatPhone, formatDate, formatVoterID } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
@@ -462,6 +462,10 @@ export default function App() {
       processedValue = formatPhone(value);
     } else if (name === 'cpf') {
       processedValue = formatCPF(value);
+    } else if (name === 'dataNascimento') {
+      processedValue = formatDate(value);
+    } else if (name === 'tituloEleitorial') {
+      processedValue = formatVoterID(value);
     }
 
     if (processedValue && typeof processedValue === 'string') {
@@ -1220,7 +1224,7 @@ export default function App() {
       {/* Dynamic Pop-up Notification Banner */}
       <AnimatePresence>
         {notification && (
-          <motion.div
+          <motion.div key="notification"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -2857,7 +2861,7 @@ export default function App() {
       {/* Modal - Print Preview */}
       <AnimatePresence>
         {showPrintPreview && selectedRecord && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 print:hidden">
+          <motion.div key="print-preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 print:hidden">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2892,14 +2896,14 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal - Detail Record View */}
       <AnimatePresence>
         {selectedRecord && (
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+          <motion.div key="detail-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -3025,7 +3029,7 @@ export default function App() {
                     <h5 className="font-bold text-white border-b border-slate-800 pb-1.5 font-mono text-[10px] uppercase text-emerald-400">DADOS PESSOAIS</h5>
                     <div className="space-y-1.5">
                       <p><span className="text-slate-400 font-medium">Nome:</span> <span className="text-white">{(selectedRecord.nomeCompleto || '').toUpperCase()}</span></p>
-                      <p><span className="text-slate-400 font-medium">Nascimento:</span> <span>{selectedRecord.dataNascimento || '-'}</span></p>
+                      <p><span className="text-slate-400 font-medium">Nascimento:</span> <span>{formatDate(selectedRecord.dataNascimento || '') || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Sexo:</span> <span>{selectedRecord.sexo || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Cor ou Raça:</span> <span>{selectedRecord.corRaca || '-'}</span></p>
                     </div>
@@ -3064,7 +3068,7 @@ export default function App() {
                     <h5 className="font-bold text-white border-b border-slate-800 pb-1.5 font-mono text-[10px] uppercase text-emerald-400">ADMINISTRATIVO E ELEITORAL</h5>
                     <div className="space-y-1.5">
                       <p><span className="text-slate-400 font-medium">RG:</span> <span className="font-mono">{selectedRecord.rg || '-'}</span></p>
-                      <p><span className="text-slate-400 font-medium">Título Eleitor:</span> <span className="font-mono">{selectedRecord.tituloEleitorial || '-'}</span></p>
+                      <p><span className="text-slate-400 font-medium">Título Eleitor:</span> <span className="font-mono">{formatVoterID(selectedRecord.tituloEleitorial || '') || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Zona / Seção:</span> <span className="font-mono">{selectedRecord.zona || '-'} / {selectedRecord.secao || '-'}</span></p>
                       <p><span className="text-slate-400 font-medium">Aeroporto Origem:</span> <span>{selectedRecord.aeroportoOrigem || '-'}</span></p>
                     </div>
@@ -3098,11 +3102,11 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
 
         {deletingRecordId && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <motion.div key="confirm-delete" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -3131,14 +3135,14 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Modal - Photo Requirements Popup */}
       <AnimatePresence>
         {showPhotoPopup && (
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div key="photo-popup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -3186,7 +3190,7 @@ export default function App() {
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -3202,7 +3206,7 @@ export default function App() {
       {/* Stats List Modal */}
       <AnimatePresence>
         {isStatsModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm">
+          <motion.div key="stats-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -3217,7 +3221,7 @@ export default function App() {
               </button>
               
               <h2 className="text-xl font-bold text-white mb-2">{statsModalTitle}</h2>
-              <p className="text-sm text-slate-400 mb-6">Total: {statsModalData.length} registros encontrados.</p>
+              <p className="text-sm text-slate-400 mb-6"><span>Total: </span>{statsModalData.length}<span> registros</span> encontrados.</p>
               
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {statsModalData.length === 0 ? (
@@ -3245,7 +3249,7 @@ export default function App() {
                         <div className="flex items-center gap-4 text-xs text-slate-400 mt-2">
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
-                            {record.municipio} - {record.uf}
+                            {record.cidade} - {record.estado}
                           </div>
                           {record.sexo && (
                             <div className="flex items-center gap-1">
@@ -3260,7 +3264,7 @@ export default function App() {
                 )}
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
