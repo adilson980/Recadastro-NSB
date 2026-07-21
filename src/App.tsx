@@ -1250,13 +1250,36 @@ export default function App() {
     };
 
     const candidates2026List = combined
-      .filter(r => r.pretendeConcorrer2026 === 'Sim')
-      .map(r => ({
-        record: r,
-        nome: (r.nomeCompleto || '').toUpperCase().split(' ').slice(0, 3).join(' '),
-        uf: r.estado || 'N/A',
-        cargo: (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').toUpperCase()
-      }));
+      .filter(r => r.pretendeConcorrer2026 === 'Sim' || r.pretendeConcorrer2026 === 'Em estudo')
+      .map(r => {
+        let cargoDisplay = (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').toUpperCase();
+        if (r.pretendeConcorrer2026 === 'Em estudo') {
+          cargoDisplay = 'EM ESTUDO';
+        }
+        return {
+          record: r,
+          nome: (r.nomeCompleto || '').toUpperCase().split(' ').slice(0, 3).join(' '),
+          uf: r.estado || 'N/A',
+          cargo: cargoDisplay
+        };
+      })
+      .sort((a, b) => {
+        const getPriority = (cargo: string) => {
+          if (cargo.includes('FEDERAL')) return 1;
+          if (cargo.includes('ESTADUAL')) return 2;
+          if (cargo === 'EM ESTUDO') return 3;
+          return 4;
+        };
+
+        const priorityA = getPriority(a.cargo);
+        const priorityB = getPriority(b.cargo);
+
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+
+        return a.nome.localeCompare(b.nome);
+      });
 
     const intentionsChartData = [
       { name: 'Sim', value: candidate2026Intents.sim },
