@@ -38,10 +38,7 @@ textarea {
   }
   
   @page {
-    margin-top: 2.5cm;
-    margin-right: 2.0cm;
-    margin-bottom: 2.0cm;
-    margin-left: 2.5cm;
+    margin: 1.0cm;
     size: A4 portrait;
   }
 

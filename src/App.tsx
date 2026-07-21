@@ -46,7 +46,6 @@ import { collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 
 import { FichaA4 } from './FichaA4';
 
@@ -1034,8 +1033,48 @@ export default function App() {
         printElement.classList.remove('hidden');
         printElement.style.display = 'block';
 
+        const styleElements = Array.from(document.querySelectorAll('style'));
+        const linkElements = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
+        
+        const restoredStyles: { el: HTMLStyleElement; originalText: string }[] = [];
+        const restoredLinks: { el: HTMLLinkElement; originalRel: string }[] = [];
+        const tempStyleElements: HTMLStyleElement[] = [];
+
         try {
-          // 1. Gera o PDF usando html2canvas e jspdf
+          // 1. Clean up <style> elements
+          for (const styleEl of styleElements) {
+            if (styleEl.textContent && styleEl.textContent.includes('oklch')) {
+              restoredStyles.push({ el: styleEl, originalText: styleEl.textContent });
+              styleEl.textContent = styleEl.textContent.replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)');
+            }
+          }
+          
+          // 2. Clean up <link> elements
+          for (const linkEl of linkElements) {
+            try {
+              const href = linkEl.href;
+              if (href && (href.startsWith(window.location.origin) || !href.startsWith('http'))) {
+                const resp = await fetch(href);
+                if (resp.ok) {
+                  const cssText = await resp.text();
+                  if (cssText.includes('oklch')) {
+                    const tempStyle = document.createElement('style');
+                    tempStyle.className = 'temp-html2canvas-style';
+                    tempStyle.textContent = cssText.replace(/oklch\([^)]+\)/g, 'rgb(0,0,0)');
+                    document.head.appendChild(tempStyle);
+                    tempStyleElements.push(tempStyle);
+                    
+                    restoredLinks.push({ el: linkEl, originalRel: linkEl.rel });
+                    linkEl.rel = 'alternate stylesheet';
+                  }
+                }
+              }
+            } catch (linkErr) {
+              console.warn('Could not process link stylesheet during PDF generation:', linkEl.href, linkErr);
+            }
+          }
+
+          // 3. Gera o PDF usando html2canvas e jspdf
           const canvas = await html2canvas(printElement, { 
             scale: 2, // Maior qualidade
             useCORS: true,
@@ -1063,6 +1102,17 @@ export default function App() {
           console.error('Error generating PDF:', error);
           triggerNotification('Erro ao gerar PDF. Imprimindo apenas...', 'error');
         } finally {
+          // Restore original stylesheets
+          restoredStyles.forEach(({ el, originalText }) => {
+            el.textContent = originalText;
+          });
+          
+          restoredLinks.forEach(({ el, originalRel }) => {
+            el.rel = originalRel;
+          });
+          
+          tempStyleElements.forEach(el => el.remove());
+
           // Restaura a visualização da tela de impressão
           printElement.classList.add('hidden');
           printElement.style.display = originalDisplay;
