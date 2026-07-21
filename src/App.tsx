@@ -671,6 +671,29 @@ export default function App() {
         (filters.pretendeConcorrer2026 === 'Em estudo' && pretende === 'em estudo');
 
       return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado && matchesPretende;
+    }).sort((a, b) => {
+      // Helpers to determine group priority
+      const getPriority = (record: FormRecord) => {
+        const pretende = record.pretendeConcorrer2026?.toLowerCase();
+        const cargo = record.cargoPretendido2026?.toUpperCase();
+        
+        if (pretende === 'sim' && cargo === 'DEPUTADO(A) FEDERAL') return 1;
+        if (pretende === 'sim' && cargo === 'DEPUTADO(A) ESTADUAL') return 2;
+        if (pretende === 'em estudo') return 3;
+        return 4; // Outros
+      };
+
+      const priorityA = getPriority(a);
+      const priorityB = getPriority(b);
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Se a prioridade for a mesma, ordena por ordem alfabética (nome completo em caixa alta)
+      const nomeA = (a.nomeCompleto || '').toUpperCase();
+      const nomeB = (b.nomeCompleto || '').toUpperCase();
+      return nomeA.localeCompare(nomeB);
     });
   }, [savedRecords, csvRecords, filters]);
 
@@ -1230,9 +1253,9 @@ export default function App() {
       .filter(r => r.pretendeConcorrer2026 === 'Sim')
       .map(r => ({
         record: r,
-        nome: (r.nomeCompleto || '').split(' ').slice(0, 3).join(' '),
+        nome: (r.nomeCompleto || '').toUpperCase().split(' ').slice(0, 3).join(' '),
         uf: r.estado || 'N/A',
-        cargo: r.cargoPretendido2026 || 'Não especificado'
+        cargo: (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').toUpperCase()
       }));
 
     const intentionsChartData = [
@@ -3438,11 +3461,11 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {statsModalData.map((record, i) => (
+                    {[...statsModalData].sort((a, b) => (a.nomeCompleto || '').toUpperCase().localeCompare((b.nomeCompleto || '').toUpperCase())).map((record, i) => (
                       <div key={i} className="bg-slate-950/50 border border-slate-800/80 p-4 rounded-2xl">
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <h4 className="font-bold text-white text-sm line-clamp-1">{record.nomeCompleto}</h4>
+                            <h4 className="font-bold text-white text-sm line-clamp-1">{(record.nomeCompleto || '').toUpperCase()}</h4>
                             <p className="text-xs text-slate-500">{record.cpf}</p>
                           </div>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
