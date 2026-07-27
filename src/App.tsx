@@ -2660,7 +2660,7 @@ export default function App() {
         )}
 
         {/* Tab 3: Metrics & Export panel */}
-        {activeTab === 'export' && renderAdminGuard(
+        {activeTab === 'export' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -3049,64 +3049,65 @@ export default function App() {
             </div>
 
             {/* Advanced CSV Management Tools */}
-            <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
-                <FolderSync className="h-5 w-5 text-emerald-400" />
-                <span>Gerenciamento de Arquivo CSV</span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Se você tiver um novo arquivo .csv com outros dados de origem no mesmo layout, você pode importá-lo abaixo para carregar como a nova base de busca no formulário.
-              </p>
-
-              <div className="space-y-4 pt-2">
-                {/* File Input Box */}
-                <div className="border border-dashed border-slate-800 hover:border-slate-700 p-4 rounded-2xl bg-slate-900/40 text-center space-y-2 cursor-pointer relative group">
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCSVUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <Download className="h-6 w-6 mx-auto text-slate-400 group-hover:text-emerald-400 transition-colors" />
-                  <p className="text-xs font-semibold text-slate-200">Selecionar ou Soltar arquivo .csv</p>
-                  <p className="text-[10px] text-slate-500 font-mono">Deve seguir as mesmas colunas estruturantes da base</p>
-                </div>
-
-                {importMessage && (
-                  <div className="p-3 bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl">
-                    {importMessage}
+            {isUserAdmin && (
+              <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <FolderSync className="h-5 w-5 text-emerald-400" />
+                  <span>Gerenciamento de Arquivo CSV</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Se você tiver um novo arquivo .csv com outros dados de origem no mesmo layout, você pode importá-lo abaixo para carregar como a nova base de busca no formulário.
+                </p>
+                <div className="space-y-4 pt-2">
+                  {/* File Input Box */}
+                  <div className="border border-dashed border-slate-800 hover:border-slate-700 p-4 rounded-2xl bg-slate-900/40 text-center space-y-2 cursor-pointer relative group">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCSVUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Download className="h-6 w-6 mx-auto text-slate-400 group-hover:text-emerald-400 transition-colors" />
+                    <p className="text-xs font-semibold text-slate-200">Selecionar ou Soltar arquivo .csv</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Deve seguir as mesmas colunas estruturantes da base</p>
                   </div>
-                )}
 
-                {errorCSV && (
-                  <div className="p-3 bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
-                    {errorCSV}
+                  {importMessage && (
+                    <div className="p-3 bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl">
+                      {importMessage}
+                    </div>
+                  )}
+
+                  {errorCSV && (
+                    <div className="p-3 bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
+                      {errorCSV}
+                    </div>
+                  )}
+
+                <div className="flex gap-3">
+                    <button
+                      onClick={restoreDefaultCSV}
+                      className="flex-1 py-2 bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs hover:bg-slate-700 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Restaurar Base Padrão</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Isso irá apagar todos os registros da base local atual (não afetará o que você já salvou via formulário). Continuar?")) {
+                          setCsvRecords([]);
+                          setImportMessage("Base apagada. Faça upload de um novo CSV ou restaure a base padrão.");
+                        }
+                      }}
+                      className="flex-1 py-2 bg-slate-800/80 text-rose-400 font-bold rounded-xl text-xs hover:bg-rose-950 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Limpar Base</span>
+                    </button>
                   </div>
-                )}
-
-              <div className="flex gap-3">
-                  <button
-                    onClick={restoreDefaultCSV}
-                    className="flex-1 py-2 bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs hover:bg-slate-700 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    <span>Restaurar Base Padrão</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm("Isso irá apagar todos os registros da base local atual (não afetará o que você já salvou via formulário). Continuar?")) {
-                        setCsvRecords([]);
-                        setImportMessage("Base apagada. Faça upload de um novo CSV ou restaure a base padrão.");
-                      }
-                    }}
-                    className="flex-1 py-2 bg-slate-800/80 text-rose-400 font-bold rounded-xl text-xs hover:bg-rose-950 transition-colors flex items-center justify-center gap-1.5"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Limpar Base</span>
-                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </motion.div>
         )}
       </main>
@@ -3340,12 +3341,14 @@ export default function App() {
                     <Printer className="h-4 w-4" />
                     <span>Pré-visualizar Ficha</span>
                   </button>
-                  <button
-                    onClick={() => handleEditRecord(selectedRecord)}
-                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
-                  >
-                    Editar / Revisar
-                  </button>
+                  {isUserAdmin && (
+                    <button
+                      onClick={() => handleEditRecord(selectedRecord)}
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-colors"
+                    >
+                      Editar / Revisar
+                    </button>
+                  )}
                   <button
                     onClick={() => setSelectedRecord(null)}
                     className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors"
@@ -3379,8 +3382,7 @@ export default function App() {
                 </button>
                 <button
                   onClick={() => {
-                    if (deletingRecordId) handleDeleteRecord(deletingRecordId);
-                    setDeletingRecordId(null);
+                    if (deletingRecordId) confirmDeleteRecord();
                   }}
                   className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs transition-colors hover:bg-rose-500 shadow-lg shadow-rose-900/20"
                 >
