@@ -866,10 +866,13 @@ export default function App() {
       });
 
       // Margins
-      const marginTop = 2.5;
-      const marginBottom = 2.5;
-      const marginLeft = 2.5;
-      const marginRight = 2.0;
+      const marginTop = 1.5;
+      const marginBottom = 1.5;
+      const marginLeft = 1.5;
+      const marginRight = 1.5;
+      const centerX = 29.7 / 2; // A4 landscape width is 29.7cm
+
+      let title1Y = 3.8;
 
       // Add NSB Logo
       try {
@@ -880,31 +883,46 @@ export default function App() {
           img.onerror = reject;
         });
         // Add image (x, y, width, height) - adjusting size
-        // The logo will be placed at the top center
-        const imgWidth = 2; // cm
+        // The logo will be placed at the top center above the title
+        const imgWidth = 2.2; // cm
         const imgHeight = (img.height * imgWidth) / img.width; // maintain aspect ratio
-        const centerX = 29.7 / 2; // A4 landscape width is 29.7cm
-        doc.addImage(img, 'PNG', centerX - (imgWidth / 2), marginTop, imgWidth, imgHeight);
+        const logoY = 0.8; // cm from top
+
+        // Render logo via high-DPI canvas for maximum sharpness in PDF
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 1520;
+        canvas.height = img.naturalHeight || 1872;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const highResDataUrl = canvas.toDataURL('image/png', 1.0);
+          doc.addImage(highResDataUrl, 'PNG', centerX - (imgWidth / 2), logoY, imgWidth, imgHeight, undefined, 'NONE');
+        } else {
+          doc.addImage(img, 'PNG', centerX - (imgWidth / 2), logoY, imgWidth, imgHeight);
+        }
+
+        title1Y = logoY + imgHeight + 0.35;
       } catch (e) {
         console.warn('Could not load logo for PDF', e);
       }
 
       // Title
       doc.setFont('arial', 'bold');
-      doc.setFontSize(10);
+      doc.setFontSize(11);
       
       const title1 = "NEGRITUDE SOCIALISTA BRASILEIRA-NSB";
       const title2 = "RELAÇÃO DE PRÉ-CANDIDATOS - PRIORIDADES";
       
       // Calculate text widths to center
       const t1Width = doc.getStringUnitWidth(title1) * doc.getFontSize() / doc.internal.scaleFactor;
-      const t2Width = doc.getStringUnitWidth(title2) * doc.getFontSize() / doc.internal.scaleFactor;
       
-      const centerX = 29.7 / 2;
-      const startYText = marginTop + 2.5; // below logo
-
-      doc.text(title1, centerX - (t1Width/2), startYText);
-      doc.text(title2, centerX - (t2Width/2), startYText + 0.6);
+      doc.text(title1, centerX - (t1Width/2), title1Y);
+      
+      doc.setFontSize(10);
+      const t2Width = doc.getStringUnitWidth(title2) * doc.getFontSize() / doc.internal.scaleFactor;
+      doc.text(title2, centerX - (t2Width/2), title1Y + 0.55);
 
       // Table Data
       const tableColumn = ["Ord", "Nome Completo", "CPF", "Telefone", "UF", "Cargo a Disputar em 2026", "Prioridade"];
@@ -927,7 +945,7 @@ export default function App() {
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: startYText + 1.2,
+        startY: title1Y + 1.0,
         margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft },
         theme: 'grid',
         styles: {
