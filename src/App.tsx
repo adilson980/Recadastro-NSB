@@ -320,6 +320,11 @@ export default function App() {
   const [errorCSV, setErrorCSV] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  
+  // Export Cargo filter modal
+  const [showPDFModal, setShowPDFModal] = useState(false);
+  const [pdfCargoFilter, setPdfCargoFilter] = useState('Todos');
+  const [exportAction, setExportAction] = useState<string>('');
 
   // Load baseline CSV and Firebase records
   useEffect(() => {
@@ -698,8 +703,8 @@ export default function App() {
   }, [savedRecords, csvRecords, filters]);
 
   // Export Unified Database as a pristine CSV file
-  const handleExportCSV = () => {
-    const combined: FormRecord[] = [...savedRecords];
+  const generateExportCSV = () => {
+    let combined: FormRecord[] = [...savedRecords];
     csvRecords.forEach(csvRec => {
       const exists = savedRecords.some(s => sanitizeCPF(s.cpf) === sanitizeCPF(csvRec.cpf));
       if (!exists) {
@@ -709,6 +714,10 @@ export default function App() {
         });
       }
     });
+
+    if (pdfCargoFilter !== 'Todos') {
+      combined = combined.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
+    }
 
     const headers = [
       'ID', 'Carimbo de data/hora', 'Nome Completo', 'CPF', 'Data Nascimento', 'Sexo', 'Cor ou Raça', 'Filiado NSB', 
@@ -771,9 +780,13 @@ export default function App() {
   };
 
   // Export filtered/selected candidates to a native Excel .xlsx file
-  const handleExportXLSX = () => {
+  const generateExportXLSX = () => {
     // Only with NOME COMPLETO, CPF, TELEFONE, UF, PRETENSÃO DE CANDIDATURA EM 2026, CARGO A DISPUTAR EM 2026 (all in UPPERCASE)
-    const dataToExport = filteredList.map(r => ({
+    let baseList = [...filteredList];
+    if (pdfCargoFilter !== 'Todos') {
+      baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
+    }
+    const dataToExport = baseList.map(r => ({
       'NOME COMPLETO': (r.nomeCompleto || '').trim().toUpperCase(),
       'CPF': (r.cpf || '').trim().toUpperCase(),
       'TELEFONE': (r.telefone || '').trim().toUpperCase(),
@@ -812,7 +825,23 @@ export default function App() {
     }
   };
 
-  const handleExportPriorityPDF = async () => {
+  const openExportModal = (action: string) => {
+    setExportAction(action);
+    setPdfCargoFilter('Todos');
+    setShowPDFModal(true);
+  };
+
+  const executeExport = () => {
+    setShowPDFModal(false);
+    if (exportAction === 'CSV') generateExportCSV();
+    else if (exportAction === 'XLSX') generateExportXLSX();
+    else if (exportAction === 'PriorityXLSX') generateExportPriorityXLSX();
+    else if (exportAction === 'PriorityPDF') generateExportPriorityPDF();
+    else if (exportAction === 'BankPDF') generateExportBankPDF();
+  };
+
+  const generateExportPriorityPDF = async () => {
+    setShowPDFModal(false);
     triggerNotification('Gerando PDF de prioridades...', 'info');
     
     const cargoOrder: Record<string, number> = {
@@ -829,8 +858,12 @@ export default function App() {
       'Baixa': 3
     };
 
-    const sortedCandidates = [...filteredList]
-      .filter(r => r.pretendeConcorrer2026 === 'Sim')
+    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    if (pdfCargoFilter !== 'Todos') {
+      baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
+    }
+
+    const sortedCandidates = baseList
       .sort((a, b) => {
         const cA = cargoOrder[a.cargoPretendido2026 || ''] || 99;
         const cB = cargoOrder[b.cargoPretendido2026 || ''] || 99;
@@ -955,7 +988,11 @@ export default function App() {
     }
   };
 
-  const handleExportPriorityXLSX = () => {
+
+  const generateExportBankPDF = async () => {
+    setShowPDFModal(false);
+    triggerNotification('Gerando PDF bancário...', 'info');
+    
     const cargoOrder: Record<string, number> = {
       'PRESIDENTE DA REPÚBLICA': 1,
       'SENADOR(A) DA REPÚBLICA': 2,
@@ -970,8 +1007,164 @@ export default function App() {
       'Baixa': 3
     };
 
-    const sortedCandidates = [...filteredList]
-      .filter(r => r.pretendeConcorrer2026 === 'Sim')
+    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    if (pdfCargoFilter !== 'Todos') {
+      baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
+    }
+
+    const sortedCandidates = baseList
+      .sort((a, b) => {
+        const cA = cargoOrder[a.cargoPretendido2026 || ''] || 99;
+        const cB = cargoOrder[b.cargoPretendido2026 || ''] || 99;
+        if (cA !== cB) return cA - cB;
+        
+        const pA = priorityOrder[a.prioridade || ''] || 99;
+        const pB = priorityOrder[b.prioridade || ''] || 99;
+        if (pA !== pB) return pA - pB;
+        
+        const nomeA = (a.nomeCompleto || '').trim().toLowerCase();
+        const nomeB = (b.nomeCompleto || '').trim().toLowerCase();
+        if (nomeA < nomeB) return -1;
+        if (nomeA > nomeB) return 1;
+        
+        const ufA = (a.estado || '').trim().toLowerCase();
+        const ufB = (b.estado || '').trim().toLowerCase();
+        if (ufA < ufB) return -1;
+        if (ufA > ufB) return 1;
+        return 0;
+      });
+
+    if (sortedCandidates.length === 0) {
+      triggerNotification('Nenhum registro encontrado para gerar o PDF.', 'info');
+      return;
+    }
+
+    try {
+      // Create jsPDF instance in landscape A4
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'cm',
+        format: 'a4'
+      });
+      
+      // Margins
+      const marginTop = 2.5;
+      const marginBottom = 2.5;
+      const marginLeft = 2.5;
+      const marginRight = 2.0;
+
+      // Add NSB Logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        const imgWidth = 2; // cm
+        const imgHeight = (img.height * imgWidth) / img.width; // maintain aspect ratio
+        const centerX = 29.7 / 2; // A4 landscape width is 29.7cm
+        doc.addImage(img, 'PNG', centerX - (imgWidth / 2), marginTop, imgWidth, imgHeight);
+      } catch (e) {
+        console.warn('Could not load logo for PDF', e);
+      }
+
+      // Title
+      doc.setFont('arial', 'bold');
+      doc.setFontSize(10);
+      
+      const title1 = "NEGRITUDE SOCIALISTA BRASILEIRA-NSB";
+      const title2 = "RELAÇÃO DE PRÉ-CANDIDATOS - DADOS BANCÁRIOS";
+
+      // Calculate text widths to center
+      const t1Width = doc.getStringUnitWidth(title1) * doc.getFontSize() / doc.internal.scaleFactor;
+      const t2Width = doc.getStringUnitWidth(title2) * doc.getFontSize() / doc.internal.scaleFactor;
+      
+      const centerX = 29.7 / 2;
+      const startYText = marginTop + 2.5; // below logo
+      doc.text(title1, centerX - (t1Width/2), startYText);
+      doc.text(title2, centerX - (t2Width/2), startYText + 0.6);
+
+      // Table Data
+      // Ord, Nome Completo, Cargo, UF, Nome Urna, Banco, Agência, Nº Conta, Chave PIX
+      const tableColumn = ["Ord", "Nome Completo", "Cargo", "UF", "Nome Urna", "Banco", "Agência", "Nº Conta", "Chave PIX"];
+      const tableRows: any[] = [];
+
+      sortedCandidates.forEach((r, index) => {
+        const rowData = [
+          index + 1,
+          (r.nomeCompleto || '').trim().toUpperCase(),
+          (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').trim().toUpperCase(),
+          (r.estado || '').trim().toUpperCase(),
+          (r.nomeUrna || '').trim().toUpperCase(),
+          (r.bancoConta1 || '').trim().toUpperCase(),
+          (r.agenciaConta1 || '').trim().toUpperCase(),
+          (r.numeroConta1 || '').trim().toUpperCase(),
+          (r.chavePix || '').trim().toUpperCase()
+        ];
+        tableRows.push(rowData);
+      });
+
+      // Add autoTable
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: startYText + 1.2,
+        margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft },
+        theme: 'grid',
+        styles: {
+          font: 'arial',
+          fontSize: 8,
+          cellPadding: 0.15,
+          lineWidth: 0.01,
+          lineColor: [0, 0, 0],
+          textColor: [0, 0, 0]
+        },
+        headStyles: {
+          fillColor: [220, 220, 220],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 1.0 },
+          3: { halign: 'center', cellWidth: 1.2 },
+          5: { cellWidth: 3.5 },
+          6: { cellWidth: 2.0 },
+          7: { cellWidth: 2.5 },
+          8: { cellWidth: 3.5 }
+        }
+      });
+
+      doc.save('nsb_candidatos_bancarios.pdf');
+      triggerNotification('PDF Bancário gerado com sucesso!', 'success');
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      triggerNotification('Erro ao gerar o PDF.', 'error');
+    }
+  };
+
+  const generateExportPriorityXLSX = () => {
+    const cargoOrder: Record<string, number> = {
+      'PRESIDENTE DA REPÚBLICA': 1,
+      'SENADOR(A) DA REPÚBLICA': 2,
+      'DEPUTADO(A) FEDERAL': 3,
+      'GOVERNADOR(A)': 4,
+      'DEPUTADO(A) ESTADUAL': 5
+    };
+    
+    const priorityOrder: Record<string, number> = {
+      'Alta': 1,
+      'Média': 2,
+      'Baixa': 3
+    };
+
+    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    if (pdfCargoFilter !== 'Todos') {
+      baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
+    }
+
+    const sortedCandidates = baseList
       .sort((a, b) => {
         // 1. Cargo Eletivo
         const cargoA = a.cargoPretendido2026 || '';
@@ -2176,6 +2369,14 @@ export default function App() {
                                           onChange={handleChange}
                                           className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
                                         />
+                                        <input
+                                          type="text"
+                                          name="chavePix"
+                                          placeholder="Chave PIX"
+                                          value={formData.chavePix || ''}
+                                          onChange={handleChange}
+                                          className="w-full sm:col-span-3 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                                        />
                                       </div>
                                     </div>
 
@@ -2491,32 +2692,39 @@ export default function App() {
                 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
-                    onClick={handleExportCSV}
+                    onClick={() => openExportModal("CSV")}
                     className="px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors border border-slate-750 shadow-md"
                   >
                     <Download className="h-4 w-4" />
                     <span className="hidden sm:inline">Exportar CSV Completo</span>
                   </button>
                   <button
-                    onClick={handleExportXLSX}
+                    onClick={() => openExportModal("XLSX")}
                     className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
                   >
                     <Sparkles className="h-4 w-4 text-emerald-300" />
                     <span>Exportar Candidatos (.xlsx)</span>
                   </button>
                   <button
-                    onClick={handleExportPriorityXLSX}
+                    onClick={() => openExportModal("PriorityXLSX")}
                     className="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
                   >
                     <ListOrdered className="h-4 w-4 text-indigo-300" />
                     <span>XLSX (PRIORIDADE)</span>
                   </button>
                   <button
-                    onClick={handleExportPriorityPDF}
+                    onClick={() => openExportModal("PriorityPDF")}
                     className="px-4 py-2 bg-rose-700 hover:bg-rose-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
                   >
                     <Download className="h-4 w-4 text-rose-300" />
                     <span>PDF (PRIORIDADE)</span>
+                  </button>
+                  <button
+                    onClick={() => openExportModal("BankPDF")}
+                    className="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-lg"
+                  >
+                    <Download className="h-4 w-4 text-amber-300" />
+                    <span>PDF (BANCÁRIO)</span>
                   </button>
 
                 </div>
@@ -3176,6 +3384,63 @@ export default function App() {
                   <Download className="h-4 w-4" />
                   <span>Gerar PDF e Imprimir</span>
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal - PDF Cargo Filter */}
+      <AnimatePresence>
+        {showPDFModal && (
+          <motion.div key="pdf-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-slate-900 rounded-3xl border border-slate-800 w-full max-w-sm overflow-hidden flex flex-col text-left text-slate-100 shadow-2xl"
+            >
+              <div className="p-5 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <Download className="h-5 w-5 text-rose-500" />
+                  {exportAction === 'PriorityPDF' ? 'Gerar PDF (Prioridades)' : `Exportar ${exportAction === 'BankPDF' ? 'Dados Bancários' : exportAction.replace('Priority', 'Prioridade ')}`}
+                </h3>
+                <button onClick={() => setShowPDFModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold font-mono tracking-wider text-slate-400 uppercase mb-2">Filtrar por Cargo</label>
+                  <select 
+                    value={pdfCargoFilter} 
+                    onChange={(e) => setPdfCargoFilter(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
+                  >
+                    <option value="Todos">Todos os Cargos</option>
+                    <option value="PRESIDENTE DA REPÚBLICA">Presidente da República</option>
+                    <option value="SENADOR(A) DA REPÚBLICA">Senador(a) da República</option>
+                    <option value="DEPUTADO(A) FEDERAL">Deputado(a) Federal</option>
+                    <option value="GOVERNADOR(A)">Governador(a)</option>
+                    <option value="DEPUTADO(A) ESTADUAL">Deputado(a) Estadual</option>
+                    <option value="VEREADOR(A)">Vereador(a)</option>
+                    <option value="PREFEITO(A)">Prefeito(a)</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    onClick={() => setShowPDFModal(false)}
+                    className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors hover:bg-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={executeExport}
+                    className="px-4 py-2 bg-rose-600 text-white font-bold rounded-xl text-xs transition-colors hover:bg-rose-500 shadow-lg shadow-rose-900/20"
+                  >
+                    Exportar
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

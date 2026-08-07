@@ -52,6 +52,7 @@ export interface FormRecord {
   bancoConta2?: string;
   agenciaConta2?: string;
   numeroConta2?: string;
+  chavePix?: string;
 }
 
 export type TabType = 'form' | 'records' | 'export';

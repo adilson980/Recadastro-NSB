@@ -172,6 +172,10 @@ export const FichaA4 = ({ selectedRecord }: { selectedRecord: FormRecord }) => {
               <span className="text-[12pt] text-slate-800 font-medium">{selectedRecord.numeroConta1 || '-'}</span>
             </div>
           </div>
+          <div className="col-span-2 border-b border-slate-200 pb-4">
+            <span className="font-bold uppercase text-[14pt] text-slate-900 block mb-1">Chave PIX</span>
+            <span className="text-[12pt] text-slate-800 font-medium">{selectedRecord.chavePix || '-'}</span>
+          </div>
 
           {selectedRecord.bancoConta2 && (
             <div className="col-span-2 grid grid-cols-3 gap-8 border-b border-slate-200 pb-4">
