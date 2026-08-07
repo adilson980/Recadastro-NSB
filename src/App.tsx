@@ -2246,11 +2246,40 @@ export default function App() {
                                     Fotos para Banca de Heteroidentificação
                                   </label>
                                   {!hasSeenPhotoReqs ? (
-                                    <button type="button" onClick={() => setHasSeenPhotoReqs(true)}>Adicionar Fotos</button>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setShowPhotoPopup(true);
+                                        setHasSeenPhotoReqs(true);
+                                      }}
+                                      className="w-full py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors border border-slate-700 mt-2"
+                                    >
+                                      <Camera className="h-4 w-4" />
+                                      Adicionar Fotos (Pretos/Pardos)
+                                    </button>
                                   ) : (
-                                    <div className="grid grid-cols-3 gap-2 mt-1">
-                                      {(["foto1", "foto2", "foto3"] as const).map(photoKey => (
-                                        <div key={photoKey}></div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                                      {(["foto1", "foto2", "foto3"] as const).map((photoKey, idx) => (
+                                        <div key={photoKey} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-dashed border-slate-700 hover:border-emerald-500 transition-colors bg-slate-900 flex items-center justify-center">
+                                          {formData[photoKey] ? (
+                                            <>
+                                              <img src={formData[photoKey]} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+                                              <label className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer">
+                                                <RefreshCw className="h-5 w-5 text-white mb-1" />
+                                                <span className="text-[10px] text-white font-bold">Trocar Foto</span>
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, photoKey)} />
+                                              </label>
+                                            </>
+                                          ) : (
+                                            <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                                              <Camera className="h-6 w-6 text-slate-500 mb-2 group-hover:text-emerald-400 transition-colors" />
+                                              <span className="text-[10px] font-bold text-slate-400 group-hover:text-emerald-400 transition-colors text-center px-2">
+                                                {idx === 0 ? "Foto de Frente" : idx === 1 ? "Perfil Direito" : "Perfil Esquerdo"}
+                                              </span>
+                                              <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e, photoKey)} />
+                                            </label>
+                                          )}
+                                        </div>
                                       ))}
                                     </div>
                                   )}
