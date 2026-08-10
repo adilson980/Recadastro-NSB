@@ -63,4 +63,5 @@ export interface FilterOptions {
   filiado: string;
   delegado: string;
   pretendeConcorrer2026: string;
+  candidaturaHomologada?: string;
 }

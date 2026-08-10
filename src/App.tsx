@@ -307,7 +307,8 @@ export default function App() {
     estado: 'Todos',
     filiado: 'Todos',
     delegado: 'Todos',
-    pretendeConcorrer2026: 'Todos'
+    pretendeConcorrer2026: 'Todos',
+    candidaturaHomologada: 'Todos'
   });
 
   // Admin and UI state
@@ -675,7 +676,13 @@ export default function App() {
         (filters.pretendeConcorrer2026 === 'Sim' && pretende === 'sim') ||
         (filters.pretendeConcorrer2026 === 'Em estudo' && pretende === 'em estudo');
 
-      return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado && matchesPretende;
+      // 6. Homologated candidacy filter
+      const homologada = (record.candidaturaHomologada || '').toLowerCase();
+      const matchesHomologada = !filters.candidaturaHomologada || filters.candidaturaHomologada === 'Todos' ||
+        (filters.candidaturaHomologada === 'Sim' && homologada === 'sim') ||
+        (filters.candidaturaHomologada === 'Não' && homologada !== 'sim');
+
+      return matchesSearch && matchesEstado && matchesFiliado && matchesDelegado && matchesPretende && matchesHomologada;
     }).sort((a, b) => {
       // Helpers to determine group priority
       const getPriority = (record: FormRecord) => {
@@ -858,7 +865,7 @@ export default function App() {
       'Baixa': 3
     };
 
-    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    let baseList = [...filteredList].filter(r => (r.candidaturaHomologada === 'Sim' || r.candidaturaHomologada?.trim().toLowerCase() === 'sim') && r.pretendeConcorrer2026 === 'Sim');
     if (pdfCargoFilter !== 'Todos') {
       baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
     }
@@ -1007,7 +1014,7 @@ export default function App() {
       'Baixa': 3
     };
 
-    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    let baseList = [...filteredList].filter(r => (r.candidaturaHomologada === 'Sim' || r.candidaturaHomologada?.trim().toLowerCase() === 'sim') && r.pretendeConcorrer2026 === 'Sim');
     if (pdfCargoFilter !== 'Todos') {
       baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
     }
@@ -1159,7 +1166,7 @@ export default function App() {
       'Baixa': 3
     };
 
-    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
+    let baseList = [...filteredList].filter(r => (r.candidaturaHomologada === 'Sim' || r.candidaturaHomologada?.trim().toLowerCase() === 'sim') && r.pretendeConcorrer2026 === 'Sim');
     if (pdfCargoFilter !== 'Todos') {
       baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
     }
@@ -1683,8 +1690,8 @@ export default function App() {
       <header id="app-header" className="border-b border-slate-800 bg-slate-950/60 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-700/20 text-emerald-400 rounded-xl border border-emerald-500/20 shadow-inner">
-              <Sparkles className="h-6 w-6" />
+            <div className="p-1.5 bg-slate-900 rounded-xl border border-slate-800 shadow-inner flex items-center justify-center">
+              <img src="/logo.png" alt="NSB Logo" className="h-10 w-auto object-contain" />
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight text-white flex items-center gap-2">
@@ -2731,7 +2738,7 @@ export default function App() {
               </div>
 
               {/* Dynamic Filter Layout */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-850">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-850">
                 
                 {/* Search Term */}
                 <div className="relative">
@@ -2788,6 +2795,17 @@ export default function App() {
                   <option value="Todos">Candidatura 2026 (Todos)</option>
                   <option value="Sim">Apenas Sim</option>
                   <option value="Em estudo">Apenas Em Estudo</option>
+                </select>
+
+                {/* Candidatura Homologada filter */}
+                <select
+                  value={filters.candidaturaHomologada || 'Todos'}
+                  onChange={(e) => setFilters(prev => ({ ...prev, candidaturaHomologada: e.target.value }))}
+                  className="bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Todos">Homologação (Todos)</option>
+                  <option value="Sim">Apenas Homologadas</option>
+                  <option value="Não">Não Homologadas</option>
                 </select>
 
               </div>
