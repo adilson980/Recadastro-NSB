@@ -4,7 +4,7 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  experimentalAutoDetectLongPolling: true
 }, firebaseConfig.firestoreDatabaseId || "(default)");
 
 

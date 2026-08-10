@@ -865,7 +865,7 @@ export default function App() {
       'Baixa': 3
     };
 
-    let baseList = [...filteredList].filter(r => (r.candidaturaHomologada === 'Sim' || r.candidaturaHomologada?.trim().toLowerCase() === 'sim') && r.pretendeConcorrer2026 === 'Sim');
+    let baseList = [...filteredList].filter(r => r.pretendeConcorrer2026 === 'Sim');
     if (pdfCargoFilter !== 'Todos') {
       baseList = baseList.filter(r => r.cargoPretendido2026 === pdfCargoFilter);
     }
