@@ -906,25 +906,43 @@ export default function App() {
       });
 
             // Margins
-      const marginTop = 2.5;
-      const marginBottom = 2.5;
-      const marginLeft = 2.5;
+      const marginTop = 0.8;
+      const marginBottom = 1.5;
+      const marginLeft = 2.0;
       const marginRight = 2.0;
 
       // Add NSB Logo
+      const logoY = 0.8; // Position at top of page
+      let imgHeight = 1.8;
       try {
         const img = new Image();
+        img.crossOrigin = 'Anonymous';
         img.src = '/logo.png';
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
         });
-        // Add image (x, y, width, height) - adjusting size
-        // The logo will be placed at the top center
-        const imgWidth = 2; // cm
-        const imgHeight = (img.height * imgWidth) / img.width; // maintain aspect ratio
+        const imgWidth = 2.0; // cm
+        const naturalW = img.naturalWidth || img.width || 800;
+        const naturalH = img.naturalHeight || img.height || 800;
+        imgHeight = (naturalH * imgWidth) / naturalW; // maintain aspect ratio
         const centerX = 29.7 / 2; // A4 landscape width is 29.7cm
-        doc.addImage(img, 'PNG', centerX - (imgWidth / 2), marginTop, imgWidth, imgHeight);
+        const logoX = centerX - (imgWidth / 2);
+
+        // Render at full crisp resolution using offscreen canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = naturalW;
+        canvas.height = naturalH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const highResDataUrl = canvas.toDataURL('image/png');
+          doc.addImage(highResDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
+        } else {
+          doc.addImage(img, 'PNG', logoX, logoY, imgWidth, imgHeight);
+        }
       } catch (e) {
         console.warn('Could not load logo for PDF', e);
       }
@@ -941,10 +959,10 @@ export default function App() {
       const t2Width = doc.getStringUnitWidth(title2) * doc.getFontSize() / doc.internal.scaleFactor;
       
       const centerX = 29.7 / 2;
-      const startYText = marginTop + 2.5; // below logo
+      const startYText = logoY + imgHeight + 0.4; // Safely positioned below logo
 
       doc.text(title1, centerX - (t1Width/2), startYText);
-      doc.text(title2, centerX - (t2Width/2), startYText + 0.6);
+      doc.text(title2, centerX - (t2Width/2), startYText + 0.5);
 
       // Table Data
       const tableColumn = ["Ord", "Nome Completo", "CPF", "Telefone", "UF", "Cargo a Disputar em 2026", "Prioridade"];
@@ -966,8 +984,8 @@ export default function App() {
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: startYText + 1.2,
-        margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft },
+        startY: startYText + 1.0,
+        margin: { top: 1.0, right: marginRight, bottom: marginBottom, left: marginLeft },
         theme: 'grid',
         styles: {
           font: 'arial',
@@ -1055,23 +1073,43 @@ export default function App() {
       });
       
       // Margins
-      const marginTop = 2.5;
-      const marginBottom = 2.5;
-      const marginLeft = 2.5;
+      const marginTop = 0.8;
+      const marginBottom = 1.5;
+      const marginLeft = 2.0;
       const marginRight = 2.0;
 
       // Add NSB Logo
+      const logoY = 0.8; // Position at top of page
+      let imgHeight = 1.8;
       try {
         const img = new Image();
+        img.crossOrigin = 'Anonymous';
         img.src = '/logo.png';
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
         });
-        const imgWidth = 2; // cm
-        const imgHeight = (img.height * imgWidth) / img.width; // maintain aspect ratio
+        const imgWidth = 2.0; // cm
+        const naturalW = img.naturalWidth || img.width || 800;
+        const naturalH = img.naturalHeight || img.height || 800;
+        imgHeight = (naturalH * imgWidth) / naturalW; // maintain aspect ratio
         const centerX = 29.7 / 2; // A4 landscape width is 29.7cm
-        doc.addImage(img, 'PNG', centerX - (imgWidth / 2), marginTop, imgWidth, imgHeight);
+        const logoX = centerX - (imgWidth / 2);
+
+        // Render at full crisp resolution using offscreen canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = naturalW;
+        canvas.height = naturalH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const highResDataUrl = canvas.toDataURL('image/png');
+          doc.addImage(highResDataUrl, 'PNG', logoX, logoY, imgWidth, imgHeight);
+        } else {
+          doc.addImage(img, 'PNG', logoX, logoY, imgWidth, imgHeight);
+        }
       } catch (e) {
         console.warn('Could not load logo for PDF', e);
       }
@@ -1088,9 +1126,9 @@ export default function App() {
       const t2Width = doc.getStringUnitWidth(title2) * doc.getFontSize() / doc.internal.scaleFactor;
       
       const centerX = 29.7 / 2;
-      const startYText = marginTop + 2.5; // below logo
+      const startYText = logoY + imgHeight + 0.4; // Safely positioned below logo
       doc.text(title1, centerX - (t1Width/2), startYText);
-      doc.text(title2, centerX - (t2Width/2), startYText + 0.6);
+      doc.text(title2, centerX - (t2Width/2), startYText + 0.5);
 
       // Table Data
       // Ord, Nome Completo, Cargo, UF, Nome Urna, Banco, Agência, Nº Conta, Chave PIX
@@ -1116,8 +1154,8 @@ export default function App() {
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
-        startY: startYText + 1.2,
-        margin: { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft },
+        startY: startYText + 1.0,
+        margin: { top: 1.0, right: marginRight, bottom: marginBottom, left: marginLeft },
         theme: 'grid',
         styles: {
           font: 'arial',
