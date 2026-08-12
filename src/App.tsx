@@ -3845,15 +3845,8 @@ export default function App() {
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h4 className="font-bold text-white text-sm line-clamp-1">{(record.nomeCompleto || '').toUpperCase()}</h4>
-                            <p className="text-xs text-slate-500">{record.cpf}</p>
+                            <p className="text-xs text-slate-500">CNPJ: {record.cnpjCandidatura || '-'}</p>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            record.prioridade === 'Alta' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                            record.prioridade === 'Média' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                            'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                          }`}>
-                            {record.prioridade}
-                          </span>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-slate-400 mt-2">
                           <div className="flex items-center gap-1">
