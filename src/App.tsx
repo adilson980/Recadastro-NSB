@@ -37,7 +37,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
 import { FormRecord, TabType, FilterOptions } from './types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { parseCSVData, sanitizeCPF, isValidCPF, formatCPF, formatPhone, formatDate, formatVoterID } from './csvParser';
+import { parseCSVData, sanitizeCPF, isValidCPF, formatCPF, formatPhone, formatDate, formatVoterID, formatCNPJ } from './csvParser';
 import { fallbackCSVRecords } from './csvFallbackData';
 // @ts-ignore
 import dadosRaw from './dados.csv?raw';
@@ -474,6 +474,8 @@ export default function App() {
       processedValue = formatDate(value);
     } else if (name === 'tituloEleitorial') {
       processedValue = formatVoterID(value);
+    } else if (name === 'cnpjCandidatura') {
+      processedValue = formatCNPJ(value);
     }
 
     if (processedValue && typeof processedValue === 'string') {
@@ -2381,6 +2383,7 @@ export default function App() {
                                         type="text"
                                         name="cnpjCandidatura"
                                         placeholder="00.000.000/0000-00"
+                                        maxLength={18}
                                         value={formData.cnpjCandidatura || ''}
                                         onChange={handleChange}
                                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"

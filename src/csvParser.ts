@@ -144,3 +144,13 @@ export function formatVoterID(id: string): string {
   if (sanitized.length <= 8) return `${sanitized.slice(0, 4)} ${sanitized.slice(4)}`;
   return `${sanitized.slice(0, 4)} ${sanitized.slice(4, 8)} ${sanitized.slice(8, 12)}`;
 }
+
+// Format CNPJ visually as 00.000.000/0000-00
+export function formatCNPJ(cnpj: string): string {
+  const sanitized = cnpj.replace(/\D/g, '').slice(0, 14);
+  if (sanitized.length <= 2) return sanitized;
+  if (sanitized.length <= 5) return `${sanitized.slice(0, 2)}.${sanitized.slice(2)}`;
+  if (sanitized.length <= 8) return `${sanitized.slice(0, 2)}.${sanitized.slice(2, 5)}.${sanitized.slice(5)}`;
+  if (sanitized.length <= 12) return `${sanitized.slice(0, 2)}.${sanitized.slice(2, 5)}.${sanitized.slice(5, 8)}/${sanitized.slice(8)}`;
+  return `${sanitized.slice(0, 2)}.${sanitized.slice(2, 5)}.${sanitized.slice(5, 8)}/${sanitized.slice(8, 12)}-${sanitized.slice(12, 14)}`;
+}
