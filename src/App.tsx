@@ -1133,8 +1133,8 @@ export default function App() {
       doc.text(title2, centerX - (t2Width/2), startYText + 0.5);
 
       // Table Data
-      // Ord, Nome Completo, Cargo, UF, Nome Urna, Banco, Agência, Nº Conta, Chave PIX
-      const tableColumn = ["Ord", "Nome Completo", "Cargo", "UF", "Nome Urna", "Banco", "Agência", "Nº Conta", "Chave PIX"];
+      // Ord, Nome Completo, Cargo, UF, Nome Urna, Prioridade, Banco, Agência, Nº Conta, Chave PIX
+      const tableColumn = ["Ord", "Nome Completo", "Cargo", "UF", "Nome Urna", "Prioridade", "Banco", "Agência", "Nº Conta", "Chave PIX"];
       const tableRows: any[] = [];
 
       sortedCandidates.forEach((r, index) => {
@@ -1144,6 +1144,7 @@ export default function App() {
           (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').trim().toUpperCase(),
           (r.estado || '').trim().toUpperCase(),
           (r.nomeUrna || '').trim().toUpperCase(),
+          (r.prioridade || 'NÃO DEFINIDA').trim().toUpperCase(),
           (r.bancoConta1 || '').trim().toUpperCase(),
           (r.agenciaConta1 || '').trim().toUpperCase(),
           (r.numeroConta1 || '').trim().toUpperCase(),
@@ -1176,10 +1177,11 @@ export default function App() {
         columnStyles: {
           0: { halign: 'center', cellWidth: 1.0 },
           3: { halign: 'center', cellWidth: 1.2 },
-          5: { cellWidth: 3.5 },
-          6: { cellWidth: 2.0 },
-          7: { cellWidth: 2.5 },
-          8: { cellWidth: 3.5 }
+          5: { halign: 'center', cellWidth: 2.0 },
+          6: { cellWidth: 3.0 },
+          7: { cellWidth: 1.8 },
+          8: { cellWidth: 2.2 },
+          9: { cellWidth: 3.2 }
         }
       });
 
