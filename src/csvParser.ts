@@ -78,7 +78,11 @@ export function parseCSVData(csvText: string): FormRecord[] {
 // Re-format CPF standard string to let search be robust (removes dots, dashes, spaces)
 export function sanitizeCPF(cpf: string): string {
   if (!cpf) return '';
-  return cpf.toString().toUpperCase().replace(/O/g, '0').replace(/\D/g, '');
+  const clean = cpf.toString().toUpperCase().replace(/O/g, '0').replace(/\D/g, '');
+  if (clean.length > 0 && clean.length < 11) {
+    return clean.padStart(11, '0');
+  }
+  return clean;
 }
 
 export function isValidCPF(cpf: string): boolean {

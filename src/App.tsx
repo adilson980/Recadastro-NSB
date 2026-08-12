@@ -1483,18 +1483,30 @@ export default function App() {
       if (r.estado) statesMap[r.estado] = (statesMap[r.estado] || 0) + 1;
     });
     
+    // Helpers for robust normalization
+    const isSim = (val?: string) => (val || '').trim().toLowerCase() === 'sim';
+    const isEstudo = (val?: string) => (val || '').trim().toLowerCase().includes('estudo');
+    const isMasc = (val?: string) => {
+      const v = (val || '').trim().toLowerCase();
+      return v.startsWith('masc') || v === 'm' || v === 'homem';
+    };
+    const isFem = (val?: string) => {
+      const v = (val || '').trim().toLowerCase();
+      return v.startsWith('fem') || v === 'f' || v === 'mulher';
+    };
+
     // Candidacy goals for 2026
     const candidate2026Intents = {
-      sim: combined.filter(r => r.pretendeConcorrer2026 === 'Sim').length,
-      estudo: combined.filter(r => r.pretendeConcorrer2026 === 'Em estudo').length,
-      nao: combined.filter(r => r.pretendeConcorrer2026 === 'Não').length,
+      sim: combined.filter(r => isSim(r.pretendeConcorrer2026)).length,
+      estudo: combined.filter(r => isEstudo(r.pretendeConcorrer2026)).length,
+      nao: combined.filter(r => !isSim(r.pretendeConcorrer2026) && !isEstudo(r.pretendeConcorrer2026)).length,
     };
 
     const candidates2026List = combined
-      .filter(r => r.pretendeConcorrer2026 === 'Sim' || r.pretendeConcorrer2026 === 'Em estudo')
+      .filter(r => isSim(r.pretendeConcorrer2026) || isEstudo(r.pretendeConcorrer2026))
       .map(r => {
         let cargoDisplay = (r.cargoPretendido2026 || 'NÃO ESPECIFICADO').toUpperCase();
-        if (r.pretendeConcorrer2026 === 'Em estudo') {
+        if (isEstudo(r.pretendeConcorrer2026)) {
           cargoDisplay = 'EM ESTUDO';
         }
         return {
@@ -1507,7 +1519,7 @@ export default function App() {
       .sort((a, b) => {
         const getPriority = (cargo: string) => {
           if (cargo.includes('FEDERAL')) return 1;
-          if (cargo.includes('ESTADUAL')) return 2;
+          if (cargo.includes('ESTADUAL') || cargo.includes('DISTRITAL')) return 2;
           if (cargo === 'EM ESTUDO') return 3;
           return 4;
         };
@@ -1538,9 +1550,13 @@ export default function App() {
     const priorityList: Array<{nome: string, uf: string, cor: string, prioridade: string}> = [];
 
     combined.forEach(r => {
-      const g = r.sexo || 'Não especificada';
-      const c = r.corRaca || 'Não especificada';
-      const p = r.prioridade || 'Sem prioridade';
+      let g = 'Não especificada';
+      if (isMasc(r.sexo)) g = 'Masculino';
+      else if (isFem(r.sexo)) g = 'Feminino';
+      else if (r.sexo && r.sexo.trim()) g = r.sexo.trim();
+
+      const c = r.corRaca ? r.corRaca.trim() : 'Não especificada';
+      const p = r.prioridade ? r.prioridade.trim() : 'Sem prioridade';
       
       genderMap[g] = (genderMap[g] || 0) + 1;
       colorMap[c] = (colorMap[c] || 0) + 1;
@@ -1585,22 +1601,25 @@ export default function App() {
     const listEmEstudo: FormRecord[] = [];
 
     combined.forEach(r => {
-      if (r.pretendeConcorrer2026 === 'Sim') {
-        const cargo = (r.cargoPretendido2026 || '').toUpperCase();
-        if (cargo === 'DEPUTADO(A) FEDERAL') {
+      const cargo = (r.cargoPretendido2026 || '').toUpperCase().trim();
+      const isFederal = cargo.includes('FEDERAL');
+      const isEstadual = cargo.includes('ESTADUAL') || cargo.includes('DISTRITAL');
+
+      if (isSim(r.pretendeConcorrer2026)) {
+        if (isFederal) {
           totalDepFederal++;
           listDepFederal.push(r);
-          if (r.sexo === 'Masculino') { totalDepFederalMasc++; listDepFederalMasc.push(r); }
-          else if (r.sexo === 'Feminino') { totalDepFederalFem++; listDepFederalFem.push(r); }
+          if (isMasc(r.sexo)) { totalDepFederalMasc++; listDepFederalMasc.push(r); }
+          else if (isFem(r.sexo)) { totalDepFederalFem++; listDepFederalFem.push(r); }
           else { totalDepFederalNaoDecl++; listDepFederalNaoDecl.push(r); }
-        } else if (cargo === 'DEPUTADO(A) ESTADUAL') {
+        } else if (isEstadual) {
           totalDepEstadual++;
           listDepEstadual.push(r);
-          if (r.sexo === 'Masculino') { totalDepEstadualMasc++; listDepEstadualMasc.push(r); }
-          else if (r.sexo === 'Feminino') { totalDepEstadualFem++; listDepEstadualFem.push(r); }
+          if (isMasc(r.sexo)) { totalDepEstadualMasc++; listDepEstadualMasc.push(r); }
+          else if (isFem(r.sexo)) { totalDepEstadualFem++; listDepEstadualFem.push(r); }
           else { totalDepEstadualNaoDecl++; listDepEstadualNaoDecl.push(r); }
         }
-      } else if (r.pretendeConcorrer2026 === 'Em estudo') {
+      } else if (isEstudo(r.pretendeConcorrer2026)) {
           listEmEstudo.push(r);
       }
     });
